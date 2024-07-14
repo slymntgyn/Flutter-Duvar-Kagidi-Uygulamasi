@@ -837,7 +837,6 @@ class _SayfalarState extends State<Sayfalar> {
             ),
           ),
         ]);
-//hd
     // Implement the logic for each choice here
     switch (result) {
       case 'Favorilerden Çıkar':
