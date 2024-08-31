@@ -122,4 +122,50 @@ class Widgets {
       );
 
   }
+
+
+
+
+  static // Function to build a dropdown widget with a black underline,
+  // white text when closed, and black text when opened
+  Widget buildGenderDropdown(
+      BuildContext context,
+      List<String> genderOptions,
+      String? selectedGender,
+      ValueChanged<String?> onChanged,
+      ) {
+    return DropdownButtonFormField<String>(
+      value: selectedGender,
+      hint: Text('Cinsiyet Seçin', style: TextStyle(color: Colors.white)),
+      icon: Icon(Icons.arrow_downward, color: Colors.white),
+      dropdownColor: Colors.white, // Açıldığında arka plan beyaz
+      decoration: InputDecoration(
+        labelStyle: TextStyle(color: Colors.white),
+        enabledBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.black), // Normal alt çizgi siyah
+        ),
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.black), // Odaklandığında siyah alt çizgi
+        ),
+      ),
+      style: TextStyle(color: Colors.white), // Dropdown kapalıyken beyaz metin
+      items: genderOptions.map((String gender) {
+        return DropdownMenuItem<String>(
+          value: gender,
+          child: Row(
+            children: <Widget>[
+              Icon(
+                gender == 'Erkek' ? Icons.male : gender == 'Kadın' ? Icons.female : Icons.transgender,
+                color: gender == 'Erkek' ? Colors.blue : gender == 'Kadın' ? Colors.pink : Colors.purple,
+              ),
+              SizedBox(width: 8),
+              Text(gender, style: TextStyle(color: Colors.black)), // Açıldığında siyah metin
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: onChanged,
+    );
+  }
+
 }

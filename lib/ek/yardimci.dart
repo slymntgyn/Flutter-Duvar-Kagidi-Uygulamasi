@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:quickalert/quickalert.dart';
@@ -7,6 +8,9 @@ import 'dart:io' show Platform;
 import 'dart:io';
 import 'package:device_uuid/device_uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert'; // For utf8.encode
+import 'package:crypto/crypto.dart'; // For sha256
+
 class Yardimci {
   static Future<void> AlertDialogExit(
       BuildContext context, String baslik, String icerik) {
@@ -36,6 +40,16 @@ class Yardimci {
         exit(0);
       },
     );
+  }
+  static String hashPassword(String password) {
+    // Şifreyi UTF-8 formatında encode et
+    var bytes = utf8.encode(password);
+
+    // SHA-256 algoritması ile hash'le
+    var digest = sha256.convert(bytes);
+
+    // Hash'i hexadecimal string olarak döndür
+    return digest.toString();
   }
   static Future<void> AlertDialogError(BuildContext context,String baslik,String icerik){
 

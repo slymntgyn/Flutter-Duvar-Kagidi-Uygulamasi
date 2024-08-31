@@ -8,12 +8,8 @@ import 'package:senseriduvarkagidi/model/kategoriler.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 class Genel{
   //Canlı
-    static String web_api_link="https://api.suleymantugyan.com";
+    static String web_api_link="https://api.suleymanturan.com";
 
-  //Test
-  //static String web_api_link="https://mobiltest.burotime.com/ServisTest";
-
-  //Bürotime logo rengi
   static Color renk_kirmizi=Colors.white;
 
   static String UrlImage="";
@@ -48,9 +44,20 @@ class Genel{
   static List<Widget> favoriresimwidget=new List<Widget>.empty(growable: true);
 
 
+    static  List<String>bgList=[
+      "assets/images/bg1.jpeg",
+      "assets/images/bg2.jpeg",
+      "assets/images/bg3.jpeg",
+      "assets/images/bg4.webp",
+      "assets/images/bg5.jpeg",
+      "assets/images/bg6.jpeg",
+      "assets/images/bg7.jpg",
+      "assets/images/bg8.jpeg",
+    ];
 
-
-
+    static final List<List<String>> _dropdownItems = [
+      ['Erkek', 'Kadın', 'Diğer']
+    ];
 //static String mail_adresi="ssh.burotime@gmail.com";
 //static String mail_sifre="burotime**2020";
 
