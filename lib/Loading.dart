@@ -55,6 +55,7 @@ class Loading_State extends State<Loading> {
       ayarlar.Ayarlari_Yukle(list);
     }
     print("ayarlar.bakimvarmi"+ayarlar.bakimvarmi);
+    Genel.adUnitId=ayarlar.odulluReklamId;
     if(ayarlar.bakimvarmi=="1"){
       Yardimci.AlertDialogUyari(context, "Bakım Çalışması", "Sistemde bakım çalışması vardır lütfen daha sonra tekrar deneyiniz.");
     }

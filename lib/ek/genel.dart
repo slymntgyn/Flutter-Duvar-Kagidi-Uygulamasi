@@ -13,6 +13,7 @@ class Genel{
   static Color renk_kirmizi=Colors.white;
 
   static String UrlImage="";
+  static int loginBackgroundIndex=0;
   static String SecilenKategori="";
   static int UrlImageId=0;
   static String CihazId="";
@@ -26,9 +27,7 @@ class Genel{
   static bool darkbutton=true;
 
    static RewardedAd? reklam;
-    static final adUnitId = Platform.isAndroid
-        ? 'ca-app-pub-3940256099942544/5224354917'
-        : 'ca-app-pub-3940256099942544/1712485313';
+    static String adUnitId="";
 
 
 

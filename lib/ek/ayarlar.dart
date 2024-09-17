@@ -5,6 +5,7 @@ class ayarlar{
   static String resimsunucusu="";
   static String bakimvarmi="";
   static String odullureklamacikmi="";
+  static String odulluReklamId="";
 
   static void Ayarlari_Yukle(List<Ayarlar> list){
     if(list==null)
@@ -20,6 +21,8 @@ class ayarlar{
         bakimvarmi =item.deger;
       if (item.adi == "ODULLU REKLAM ACIK MI")
         odullureklamacikmi =item.deger;
+      if (item.adi == "ODULLU REKLAM ID")
+        odulluReklamId =item.deger;
 
     }
 

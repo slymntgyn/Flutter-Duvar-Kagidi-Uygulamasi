@@ -19,6 +19,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = false;
   bool showOption=false;
   @override
+  void initState() {
+    super.initState();
+print(selectedIndex);
+    setState(() {
+      selectedIndex=Genel.loginBackgroundIndex;
+    });
+  }
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButton: Container(
@@ -68,7 +75,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 child:const  Icon(Icons.close,color: Colors.white,size: 30,)) :
             GestureDetector(
               onTap: (){
+
                 setState(() {
+                  Genel.loginBackgroundIndex=selectedIndex;
                   showOption=true;
                 });
               },

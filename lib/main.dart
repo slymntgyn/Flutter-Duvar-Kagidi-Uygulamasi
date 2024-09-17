@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: '4K-HD Duvar Kağıtları',
       theme: Provider.of<ThemeProvider>(context).themeData,
-      home: Loading(),
+      home: LoginScreen(),
     );
   }
 }
