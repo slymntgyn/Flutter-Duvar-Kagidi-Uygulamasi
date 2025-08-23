@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'genel.dart';
 import 'dart:io' show Platform;
 import 'dart:io';
-import 'package:device_uuid/device_uuid.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert'; // For utf8.encode
 import 'package:crypto/crypto.dart'; // For sha256
@@ -125,18 +125,33 @@ var aa=0;
 return aa;
   }
   static Future<String> Cihaz_Bilgi_Getir() async {
-    String? deviceId;
-    // Platform messages may fail, so we use a try/catch PlatformException.
+    final deviceInfo = DeviceInfoPlugin();
+    String deviceId = "";
 
-      final uuid = DeviceUuid().getUUID();
-      deviceId = await uuid;
+    if (Platform.isAndroid) {
+      var androidInfo = await deviceInfo.androidInfo;
+      // Bazı güvenilir alanları birleştiriyoruz
+      deviceId =
+      "${androidInfo.id}-${androidInfo.manufacturer}-${androidInfo.model}-${androidInfo.id}";
+    } else if (Platform.isIOS) {
+      var iosInfo = await deviceInfo.iosInfo;
+      deviceId =
+      "${iosInfo.identifierForVendor}-${iosInfo.model}-${iosInfo.systemName}-${iosInfo.systemVersion}";
+    } else {
+      deviceId = "UnknownDevice";
+    }
 
+    // Tekil bir ID olsun diye SHA256 hashliyoruz
+    var bytes = utf8.encode(deviceId);
+    var digest = sha256.convert(bytes);
+    deviceId = digest.toString();
 
-    Genel.CihazId=deviceId!;
-    Genel.CihazId="CIHAZ : "+Genel.CihazId!.trim();
+    Genel.CihazId = "CIHAZ : ${deviceId.trim()}";
     print(Genel.CihazId);
-    return deviceId!;
+
+    return deviceId;
   }
+
   static void Sayfa_Gecisi(BuildContext context, Widget newPage) {
     /*Navigator.push(
         context, MaterialPageRoute(builder: (BuildContext context) => newPage));*/

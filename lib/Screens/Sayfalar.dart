@@ -1,984 +1,1440 @@
-import 'dart:math';
+import 'dart:math' as math;
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/foundation.dart';
+
+// Third party packages
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hyper_effects/hyper_effects.dart';
+import 'package:photo_manager/photo_manager.dart';
+import 'package:lottie/lottie.dart';
+import 'package:provider/provider.dart';
+import 'package:quickalert/quickalert.dart';
+import 'package:stylish_bottom_bar/model/bar_items.dart';
+import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:vibration/vibration.dart';
+
+// Local imports
 import 'package:senseriduvarkagidi/Screens/ImageDetay.dart';
 import 'package:senseriduvarkagidi/Screens/KategoriResim.dart';
 import 'package:senseriduvarkagidi/model/Ayarlar.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
 import 'package:senseriduvarkagidi/theme.dart';
-import 'package:stylish_bottom_bar/model/bar_items.dart';
-import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
-import 'package:flutter/services.dart';
+import 'package:senseriduvarkagidi/theme_provider.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
 import 'package:senseriduvarkagidi/ek/widgets.dart';
 import 'package:senseriduvarkagidi/ek/yardimci.dart';
+import 'package:senseriduvarkagidi/ek/ayarlar.dart';
 import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
-import 'dart:async';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:flutter_wallpaper_manager/flutter_wallpaper_manager.dart';
-import 'dart:typed_data';
-import 'package:dio/dio.dart';
-import 'package:flutter/rendering.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
-import 'package:senseriduvarkagidi/ek/ayarlar.dart';
-import 'dart:io';
-import 'dart:typed_data';
-import 'dart:ui';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:dio/dio.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:hyper_effects/hyper_effects.dart';
-import 'package:flare_flutter/flare_actor.dart';
-import 'package:flare_flutter/flare_controls.dart';
-import 'package:quickalert/quickalert.dart';
-import 'package:vibration/vibration.dart';
-import 'package:senseriduvarkagidi/theme_provider.dart';
-import 'package:provider/provider.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class Sayfalar extends StatefulWidget {
-  const Sayfalar({
-    Key? key,
-  }) : super(key: key);
+  const Sayfalar({super.key});
 
   @override
   State<Sayfalar> createState() => _SayfalarState();
 }
 
-class _SayfalarState extends State<Sayfalar> {
-  final FlareControls flareControls = FlareControls();
-  dynamic selected;
-  var heart = false;
-  int indexvalue = 0;
-  PageController controller = PageController();
-  bool islem = false;
-  TextEditingController kullaniciAdiController = new TextEditingController();
-  TextEditingController sifreController = new TextEditingController();
+class _SayfalarState extends State<Sayfalar>
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
 
-  List<ImageList> FavoriResimler = new List<ImageList>.empty(growable: true);
-  List<Widget> no_Resimler = new List<Widget>.empty(growable: true);
+  // Controllers
+  late PageController _mainPageController;
+  late PageController _imagePageController;
+  late AnimationController _likeAnimationController;
+  late AnimationController _buttonAnimationController;
 
-  PageController pageController = PageController();
-  List<ImageList> list = Genel.Resimler;
+  // Banner Ad
+  BannerAd? _bannerAd;
+  bool _isBannerAdReady = false;
+
+  // State variables
+  int _selectedIndex = 1; // Start with images page
+  int _currentImageIndex = 0;
+  bool _isProcessing = false;
+  bool _showLikeAnimation = false;
+  Color _favoriteButtonColor = Colors.white;
   Offset _tapPosition = Offset.zero;
-  List<Widget> listResim = new List<Widget>.empty(growable: true);
-  List<Widget> listKategori = new List<Widget>.empty(growable: true);
-  List<Widget> listFavoriResim = new List<Widget>.empty(growable: true);
-  Color renk = Colors.white;
+
+  // Data lists - Use lazy loading
+  List<ImageList> _favoriteImages = [];
+  final List<Widget> _imageWidgets = [];
+  final List<Widget> _categoryWidgets = [];
+  final List<Widget> _favoriteImageWidgets = [];
+  List<ImageList> _imageList = [];
+
+  // Performance optimization
+  static const int _initialLoadCount = 3;
+  static const int _loadMoreCount = 2;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeControllers();
+    _initializeBannerAd();
+    _initializeData();
+  }
+
+  void _initializeControllers() {
+    _mainPageController = PageController(initialPage: 1);
+    _imagePageController = PageController();
+    _likeAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _buttonAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+  }
+
+  void _initializeBannerAd() {
+    if (Platform.isAndroid || Platform.isIOS) {
+      _bannerAd = BannerAd(
+        adUnitId: _getBannerAdUnitId(),
+        request: const AdRequest(),
+        size: AdSize.banner,
+        listener: BannerAdListener(
+          onAdLoaded: (_) {
+            setState(() {
+              _isBannerAdReady = true;
+            });
+          },
+          onAdFailedToLoad: (ad, err) {
+            print('Failed to load a banner ad: ${err.message}');
+            _isBannerAdReady = false;
+            ad.dispose();
+          },
+        ),
+      );
+      _bannerAd?.load();
+    }
+  }
+
+  String _getBannerAdUnitId() {
+    if (Platform.isAndroid) {
+      return ayarlar.bannerReklamId; // Test ID
+    } else if (Platform.isIOS) {
+      return ayarlar.bannerReklamId; // Test ID
+    } else {
+      throw UnsupportedError('Unsupported platform');
+    }
+  }
+
+  void _initializeData() {
+    _imageList = List.from(Genel.Resimler);
+    _imageList.shuffle(math.Random());
+
+    // Build categories asynchronously
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _buildCategoryWidgets();
+      _loadInitialImages();
+      _updateFavoriteButtonColor();
+    });
+  }
+
   @override
   void dispose() {
-    controller.dispose();
+    _mainPageController.dispose();
+    _imagePageController.dispose();
+    _likeAnimationController.dispose();
+    _buttonAnimationController.dispose();
+    _bannerAd?.dispose();
     super.dispose();
   }
 
   @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-
-    GetKategoriListWidget();
-    //FavoriResimListDoldur();
-    print("FavoriResimler" + FavoriResimler.toString());
-    Genel.Resimler.shuffle();
-    Yukle();
-    NoImage();
-  }
-/*
-  void loadAd() {
-    RewardedAd.load(
-        adUnitId: adUnitId,
-        request: const AdRequest(),
-        rewardedAdLoadCallback: RewardedAdLoadCallback(
-          // Called when an ad is successfully received.
-          onAdLoaded: (ad) {
-            debugPrint('$ad loaded.');
-            // Keep a reference to the ad so you can show it later.
-
-            _rewardedAd = ad;
-          },
-
-          // Called when an ad request failed.
-          onAdFailedToLoad: (LoadAdError error) {
-            debugPrint('RewardedAd failed to load: $error');
-          },
-        ));
-  }*/
-
-  void Yukle() {
-    if (Genel.Resimler.length >= 5) {
-      for (int i = 0; i < 5; i++) {
-        setState(() {
-          listResim.add((Stack(
-            children: [
-              Container(
-                child: Image.network(
-                    fit: BoxFit.cover,
-                    ayarlar.resimsunucusu +
-                        Genel.Resimler[listResim.length].yol,
-                    width: Genel.genislik,
-                    height: Genel.yukseklik),
-              )
-            ],
-          )));
-        });
-      }
-    } else {
-      for (int i = 0; i < Genel.Resimler.length; i++) {
-        setState(() {
-          listResim.add((Stack(
-            children: [
-              Container(
-                child: Image.network(
-                    fit: BoxFit.cover,
-                    ayarlar.resimsunucusu +
-                        Genel.Resimler[listResim.length].yol,
-                    width: Genel.genislik,
-                    height: Genel.yukseklik),
-              )
-            ],
-          )));
-        });
-      }
-    }
-  }
-
-  void GetKategoriListWidget() {
-    if (listKategori.length == 0) {
-      for (int i = 0; i < Genel.Kategoriler.length; i++) {
-        setState(() {
-          listKategori.add(GestureDetector(
-              onTap: () {
-                print("Genel.Kategoriler[i].id.toString();" +
-                    Genel.Kategoriler[i].id.toString());
-                Genel.SecilenKategori = i.toString();
-                Yardimci.Sayfa_Gecisi(context, KategoriResim());
-              },
-              child: Column(
-                children: [
-                  Container(
-                      width: Genel.genislik,
-                      height: Genel.yukseklik / 4.2,
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Container(
-                        child: Image.network(
-                            fit: BoxFit.cover,
-                            ayarlar.resimsunucusu +
-                                Genel.Kategoriler[i].kategorI_RESMI,
-                            width: Genel.genislik, loadingBuilder:
-                                (BuildContext context, Widget child,
-                                    ImageChunkEvent? loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                          );
-                        }, height: Genel.yukseklik),
-                      )).scrollTransition(
-                    (context, widget, event) => widget
-                        .blur(
-                          switch (event.phase) {
-                            ScrollPhase.identity => 0,
-                            ScrollPhase.topLeading => 10,
-                            ScrollPhase.bottomTrailing => 20,
-                          },
-                        )
-                        .scale(
-                          switch (event.phase) {
-                            ScrollPhase.identity => 1,
-                            ScrollPhase.topLeading => 0.5,
-                            ScrollPhase.bottomTrailing => 0.5,
-                          },
-                        ),
-                  ),
-                  Container(
-                      alignment: Alignment.center,
-                      child: Text(
-                        Genel.Kategoriler[i].kategori,
-                        style: TextStyle(
-                            color:
-                                Genel.darkbutton ? Colors.white : Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 22.0),
-                      )),
-                ],
-              )));
-        });
-      }
-    }
-  }
-  /*yourFunction(BuildContext context) {
-    pageController.nextPage(duration: Duration(seconds: 1), curve: Curves.bounceIn);
-    pageController.nextPage(duration: Duration(seconds: 1), curve: Curves.bounceIn);
-  }*/
-
-  FavoriResimListDoldur() {
-    FavoriResimler.clear();
-    for (var i in Genel.Resimler) {
-      if (double.parse(i.id.toString()) > 0) {
-        setState(() {
-          Yardimci.favori_resimler_Kontrol(i.id) == true
-              ? FavoriResimler.add(ImageList(i.id, i.yol, i.kategori))
-              : "";
-        });
-      }
-    }
-    print("teest" + FavoriResimler.length.toString());
-    var j = 0;
-    if (FavoriResimler.length != 0) {
-      listFavoriResim.clear();
-      FavoriResimler.shuffle();
-      for (var i in FavoriResimler) {
-        setState(() {
-          GetFavoriCardWidget(FavoriResimler[j].yol, FavoriResimler[j].id);
-        });
-
-        j++;
-      }
-
-      /* SiradakiFavoriler(0);
-      SiradakiFavoriler(FavoriResimler.length-1);*/
-    }
-  }
-
-  GetSetWallpaperType(String ImageUrl, int id) {
-    QuickAlert.show(
-        context: context,
-        type: QuickAlertType.loading,
-        text: "Lütfen duvar kağıdı yapmak istediğiniz ekranı seçiniz.",
-        widget: Column(
-          children: [
-            Padding(padding: EdgeInsets.fromLTRB(0, 10, 0, 0)),
-            TextButton.icon(
-              style: TextButton.styleFrom(
-                  foregroundColor: Colors.black45,
-                  textStyle: const TextStyle(fontSize: 20)),
-              icon: const Icon(Icons.lock),
-              onPressed: () {
-                print("1");
-              },
-              label: const Text('Kilit Ekranı'),
-            ),
-            TextButton.icon(
-              style: TextButton.styleFrom(
-                  foregroundColor: Colors.black45,
-                  textStyle: const TextStyle(fontSize: 20)),
-              icon: const Icon(Icons.home),
-              onPressed: () {
-                print("2");
-              },
-              label: const Text('Ana Ekran'),
-            ),
-            TextButton.icon(
-              style: TextButton.styleFrom(
-                  foregroundColor: Colors.black45,
-                  textStyle: const TextStyle(fontSize: 20)),
-              icon: const Icon(Icons.phone_android),
-              onPressed: () {
-                print("3");
-              },
-              label: const Text('Her ikiside'),
-            ),
-          ],
-        ));
-  }
-
   Widget build(BuildContext context) {
+    super.build(context);
+
     return Scaffold(
-      extendBody: true, //to make floating action button notch transparent
+      extendBody: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-
-      bottomNavigationBar: StylishBottomBar(
-        backgroundColor: Theme.of(context).primaryColorDark,
-        option: BubbleBarOptions(
-          inkEffect: true,
-          barStyle: BubbleBarStyle.vertical,
-          bubbleFillStyle: BubbleFillStyle.outlined,
-          opacity: 0.3,
-        ),
-        items: [
-          BottomBarItem(
-            icon: const Icon(
-              Icons.category,
-              color: Colors.white60,
-            ),
-            selectedIcon: Icon(Icons.category, color: Colors.white),
-            // selectedColor: Colors.teal,
-            backgroundColor: Colors.teal,
-            title: Text('Kategoriler',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontSize: 15, color: Colors.white)),
-          ),
-          BottomBarItem(
-            icon: const Icon(
-              Icons.house_outlined,
-              color: Colors.white60,
-            ),
-            selectedIcon: Icon(Icons.house_rounded, color: Colors.white),
-            // selectedColor: Colors.teal,
-            backgroundColor: Colors.teal,
-            title: Text('Rastgele',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontSize: 15, color: Colors.white)),
-          ),
-          BottomBarItem(
-            icon: const Icon(
-              Icons.star_border_rounded,
-              color: Colors.white60,
-            ),
-            selectedIcon: Icon(Icons.star_rounded, color: Colors.white),
-
-            selectedColor: Colors.red,
-            // unSelectedColor: Colors.purple,
-            // backgroundColor: Colors.orange,
-            title: Text(
-              textAlign: TextAlign.center,
-              'Favorilerim',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(fontSize: 15, color: Colors.white),
-            ),
-          ),
-        ],
-        hasNotch: true,
-        currentIndex: selected ?? 0,
-        onTap: (index) {
-          indexvalue = 0;
-
-          Vibration.vibrate(duration: 100);
-          if (index == 2) {
-            FavoriResimListDoldur();
-          } else if (index == 1) {
-            setState(() {
-              if (Yardimci.favori_resimler_Kontrol(
-                  Genel.Resimler[indexvalue].id))
-                renk = Colors.red;
-              else
-                renk = Colors.white;
-            });
-            print("Value Index" + indexvalue.toString());
-          }
-          controller.jumpToPage(index);
-          setState(() {
-            selected = index;
-          });
-        },
-      ),
-
-      /*floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            heart = !heart;
-            if (heart) {
-              index = 2;
-              FavoriResimListDoldur();
-              selected=index;
-              controller.jumpToPage(index);
-            } else {
-              index = 1;
-              selected=index;
-              controller.jumpToPage(index);
-            }
-          });
-        },
-
-        backgroundColor: Color.fromARGB(255, 33, 33, 33),
-        child: Icon(
-          heart ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-          color: Colors.red,
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,*/
-
+      bottomNavigationBar: _buildBottomNavigationBar(),
       body: SafeArea(
-        child: PageView(
-          physics: NeverScrollableScrollPhysics(),
-          controller: controller,
+        child: Column(
           children: [
-            new Column(
-              children: <Widget>[
-                new Row(
-                  children: [
-                    new Expanded(
-                      child: new Align(
-                        child: Column(
-                          children: [
-                            ListTile(
-                              leading: Genel.darkbutton
-                                  ? Icon(Icons.dark_mode)
-                                  : Icon(Icons.light_mode),
-                              title: Text("Hoş Geldiniz"),
-                              trailing: Switch(
-                                value: Genel.darkbutton,
-                                onChanged: (value) {
-                                  Provider.of<ThemeProvider>(context,
-                                          listen: false)
-                                      .toggleTheme();
-                                  Genel.darkbutton = !Genel.darkbutton;
-                                  Yardimci.Veri_Kaydet_String(
-                                      "darkmode", Genel.darkbutton.toString());
-                                },
-                              ),
-                            )
-                          ],
-                        ),
-                        alignment: Alignment(0.9, 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-                new Expanded(
-                  child: new ListView(
-                    children: listKategori,
-                  ),
-                ),
-              ],
-            ),
-            GestureDetector(
-              onDoubleTap: () {
-                FavorilereEkle(Genel.Resimler[indexvalue].id);
-                setState(() {
-                  if (Yardimci.favori_resimler_Kontrol(
-                      Genel.Resimler[indexvalue].id)) {
-                    renk = Colors.red;
-                    flareControls.play("like");
-                  } else
-                    renk = Colors.white;
-                  //GetCardWidget(ImageUrl,Id);
-                });
-              },
-              child: Center(
-                  child: Stack(
+            // Banner Ad at top
+            if (_isBannerAdReady && _bannerAd != null)
+              Container(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                margin: const EdgeInsets.only(bottom: 8),
+                child: AdWidget(ad: _bannerAd!),
+              ),
+            Expanded(
+              child: PageView(
+                physics: const NeverScrollableScrollPhysics(),
+                controller: _mainPageController,
                 children: [
-                  Container(
-                    child: PageView(
-                      scrollDirection: Axis.vertical,
-                      controller: pageController,
-                      children: listResim,
-                      onPageChanged: (i) {
-                        setState(() {
-                          indexvalue = i;
-                        });
-                        print(">> Açılan index : " +
-                            indexvalue.toString() +
-                            " yol : " +
-                            Genel.Resimler[indexvalue].yol);
-
-                        setState(() {
-                          if (Yardimci.favori_resimler_Kontrol(
-                              Genel.Resimler[indexvalue].id))
-                            renk = Colors.red;
-                          else
-                            renk = Colors.white;
-                        });
-
-                        if (i == listResim.length - 2) Yukle();
-                      },
-                    ),
-                  ),
-                  Align(
-                      alignment: Alignment(1.2, 1),
-                      child: Container(
-                        height: 230,
-                        margin: EdgeInsets.all(30),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            IconButton(
-                                onPressed: () {
-                                  print(">> Favori index : " +
-                                      indexvalue.toString() +
-                                      " yol : " +
-                                      Genel.Resimler[indexvalue].yol);
-                                  FavorilereEkle(Genel.Resimler[indexvalue].id);
-                                  setState(() {
-                                    if (Yardimci.favori_resimler_Kontrol(
-                                        Genel.Resimler[indexvalue].id)) {
-                                      renk = Colors.red;
-                                      flareControls.play("like");
-                                    } else
-                                      renk = Colors.white;
-                                    //GetCardWidget(ImageUrl,Id);
-                                  });
-                                },
-                                focusColor: Colors.white10,
-                                color: renk,
-                                icon: Icon(Icons.favorite_sharp)),
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(0, 0, 0, 10),
-                              child: Text("Beğen",
-                                  style: TextStyle(color: Colors.white)),
-                            ),
-                            IconButton(
-                                onPressed: () {
-                                  //   GetSetWallpaperType(Genel.Resimler[indexvalue].yol,
-                                  //        Genel.Resimler[indexvalue].id)
-
-                                  QuickAlert.show(
-                                    context: context,
-                                    type: QuickAlertType.confirm,
-                                    title: "Uyarı",
-                                    text:
-                                        "Seçilen görsel duvar kağıdı yapılacak onaylıyor musunuz?",
-                                    confirmBtnText: 'Evet',
-                                    cancelBtnText: 'Hayır',
-                                    onConfirmBtnTap: () {
-                                      if (ayarlar.odullureklamacikmi == "1") {
-                                        if (Genel.reklam == null) {
-                                          setWallpaper(
-                                              Genel.Resimler[indexvalue].yol,
-                                              Genel.Resimler[indexvalue].id);
-                                          KategoriList.ReklamYukle(context);
-                                        } else {
-                                          Genel.reklam?.show(onUserEarnedReward:
-                                              (AdWithoutView ad,
-                                                  RewardItem rewardItem) {
-                                            Navigator.of(context,
-                                                    rootNavigator: true)
-                                                .pop('dialog');
-                                            ad.dispose();
-
-                                            setWallpaper(
-                                                Genel.Resimler[indexvalue].yol,
-                                                Genel.Resimler[indexvalue].id);
-                                            KategoriList.ReklamYukle(context);
-                                          });
-                                        }
-                                      } else {
-                                        setWallpaper(
-                                            Genel.Resimler[indexvalue].yol,
-                                            Genel.Resimler[indexvalue].id);
-                                      }
-                                    },
-                                  );
-                                },
-                                color: Colors.white,
-                                icon: Icon(Icons.wallpaper)),
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(0, 0, 0, 10),
-                              child: Text(
-                                "Duvar Kağıdı",
-                                style: TextStyle(color: Colors.white),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            IconButton(
-                                onPressed: () {
-                                  if (ayarlar.odullureklamacikmi == "1") {
-                                    if (Genel.reklam == null) {
-                                      Download(Genel.Resimler[indexvalue].yol,
-                                          Genel.Resimler[indexvalue].id);
-                                      KategoriList.ReklamYukle(context);
-                                    } else {
-                                      Genel.reklam?.show(onUserEarnedReward:
-                                          (AdWithoutView ad,
-                                              RewardItem rewardItem) {
-                                        Download(Genel.Resimler[indexvalue].yol,
-                                            Genel.Resimler[indexvalue].id);
-                                        KategoriList.ReklamYukle(context);
-                                      });
-                                    }
-                                  } else {
-                                    Download(Genel.Resimler[indexvalue].yol,
-                                        Genel.Resimler[indexvalue].id);
-                                  }
-                                },
-                                focusColor: Colors.white10,
-                                color: Colors.white,
-                                icon: Icon(Icons.download)),
-                            Text("İndir",
-                                style: TextStyle(color: Colors.white)),
-                          ],
-                        ),
-                      )),
-                  Container(
-                    width: double.infinity,
-                    height: Genel.yukseklik / 1.2,
-                    child: Center(
-                      child: SizedBox(
-                        width: 120,
-                        height: 120,
-                        child: FlareActor(
-                          'assets/images/like.flr',
-                          controller: flareControls,
-                          animation: 'idle',
-                        ),
-                      ),
-                    ),
-                  ),
-                  islem == false ? Text("") : Widgets.Progress()
+                  _buildCategoriesPage(),
+                  _buildImagesPage(),
+                  _buildFavoritesPage(),
                 ],
-              )),
+              ),
             ),
-            Container(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              child: Center(
-                  child: Stack(
-                children: [
-                  Container(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: FavoriResimler.length.toString() != "0"
-                            ? GridView.count(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.6,
-                                physics: ClampingScrollPhysics(),
-                                shrinkWrap: true,
-                                padding: const EdgeInsets.all(4.0),
-                                mainAxisSpacing: 6.0,
-                                crossAxisSpacing: 6.0,
-                                children: listFavoriResim.toList())
-                            : Center(
-                                child: Column(
-                                children: [
-                                  Container(
-                                    margin: EdgeInsets.fromLTRB(
-                                        0, Genel.yukseklik / 2.5, 0, 0),
-                                    child: Icon(
-                                      size: 150,
-                                      Icons.favorite_border_outlined,
-                                      color: Genel.darkbutton
-                                          ? Colors.white
-                                          : Colors.black54,
-                                    ),
-                                  ),
-                                  Text(
-                                    "Henüz favorlerinize resim almadınız",
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                            fontSize: 15,
-                                            color: Genel.darkbutton
-                                                ? Colors.white
-                                                : Colors.black),
-                                  ),
-                                ],
-                              )),
-                      )),
-                  islem == false ? Text("") : Widgets.Progress()
-                ],
-              )),
-            )
           ],
         ),
       ),
     );
   }
 
-  void NoImage() {
-    for (var i in Genel.Resimler) {
-      setState(() {
-        no_Resimler.add(Stack(
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: StylishBottomBar(
+        backgroundColor: Theme.of(context).primaryColorDark,
+        option: BubbleBarOptions(
+          inkEffect: true,
+          barStyle: BubbleBarStyle.horizontal,
+          bubbleFillStyle: BubbleFillStyle.fill,
+          opacity: 0.8,
+        ),
+        items: [
+          _buildBottomBarItem(
+            icon: Icons.grid_view_rounded,
+            selectedIcon: Icons.grid_view,
+            title: 'Kategoriler',
+            color: Colors.orange,
+          ),
+          _buildBottomBarItem(
+            icon: Icons.explore_outlined,
+            selectedIcon: Icons.explore,
+            title: 'Keşfet',
+            color: Colors.blue,
+          ),
+          _buildBottomBarItem(
+            icon: Icons.favorite_outline,
+            selectedIcon: Icons.favorite,
+            title: 'Favorilerim',
+            color: Colors.red,
+          ),
+        ],
+        hasNotch: false,
+        currentIndex: _selectedIndex,
+        onTap: _onBottomNavigationTap,
+      ),
+    );
+  }
+
+  BottomBarItem _buildBottomBarItem({
+    required IconData icon,
+    required IconData selectedIcon,
+    required String title,
+    required Color color,
+  }) {
+    return BottomBarItem(
+      icon: Icon(icon, color: Colors.white70, size: 22),
+      selectedIcon: Icon(selectedIcon, color: Colors.white, size: 24),
+      backgroundColor: color,
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  void _onBottomNavigationTap(int index) {
+    if (_selectedIndex == index) return;
+
+    setState(() => _selectedIndex = index);
+    HapticFeedback.lightImpact();
+
+    switch (index) {
+      case 0:
+        if (_categoryWidgets.isEmpty) _buildCategoryWidgets();
+        break;
+      case 1:
+        _updateFavoriteButtonColor();
+        break;
+      case 2:
+        _loadFavoriteImages();
+        break;
+    }
+
+    _mainPageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Widget _buildCategoriesPage() {
+    return CustomScrollView(
+      slivers: [
+        // App Header için sabit alan
+        SliverToBoxAdapter(
+          child: _buildAppHeader(),
+        ),
+
+        SliverPadding(
+          padding: const EdgeInsets.only(bottom: 100),
+          sliver: _categoryWidgets.isEmpty
+              ? SliverToBoxAdapter(child: _buildLoadingGrid())
+              : SliverList(
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) => _categoryWidgets[index],
+              childCount: _categoryWidgets.length,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppHeader() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.teal.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Genel.darkbutton ? Icons.dark_mode : Icons.light_mode,
+              color: Colors.teal,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Hoş Geldiniz",
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
+                  ),
+                ),
+                Text(
+                  "En güzel duvar kağıtları",
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.color
+                        ?.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Transform.scale(
+            scale: 0.8,
+            child: Switch.adaptive(
+              value: Genel.darkbutton,
+              onChanged: _toggleTheme,
+              activeColor: Colors.teal,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  void _toggleTheme(bool value) {
+    HapticFeedback.selectionClick();
+    Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+    setState(() {
+      Genel.darkbutton = value;
+    });
+    Yardimci.Veri_Kaydet_String("darkmode", value.toString());
+  }
+
+  Widget _buildImagesPage() {
+    return Stack(
+      children: [
+        GestureDetector(
+          onDoubleTap: _onImageDoubleTap,
+          child: PageView.builder(
+            scrollDirection: Axis.vertical,
+            controller: _imagePageController,
+            itemCount: _imageWidgets.length,
+            onPageChanged: _onImagePageChanged,
+            itemBuilder: (context, index) => _imageWidgets[index],
+          ),
+        ),
+        _buildImageActionButtons(),
+        // Like Animation - only show when triggered
+        if (_showLikeAnimation) _buildLikeAnimation(),
+        if (_isProcessing) _buildProcessingOverlay(),
+      ],
+    );
+  }
+
+  Widget _buildImageActionButtons() {
+    return Positioned(
+      right: 16,
+      bottom: 120,
+      child: AnimatedBuilder(
+        animation: _buttonAnimationController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: 1.0 + (_buttonAnimationController.value * 0.1),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildActionButton(
+                    icon: Icons.favorite_rounded,
+                    label: "Beğen",
+                    color: _favoriteButtonColor,
+                    onPressed: _toggleFavorite,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildActionButton(
+                    icon: Icons.wallpaper_rounded,
+                    label: "Duvar\nKağıdı",
+                    color: Colors.white,
+                    onPressed: _setWallpaperWithConfirmation,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildActionButton(
+                    icon: Icons.download_rounded,
+                    label: "İndir",
+                    color: Colors.white,
+                    onPressed: _downloadImage,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _buttonAnimationController.forward().then((_) {
+          _buttonAnimationController.reverse();
+        });
+        onPressed();
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Center(
-              child: Text("Henüz favorilerinize resim almadınız."),
-            )
+            Icon(
+              icon,
+              color: color,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                height: 1.1,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
-        ));
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLikeAnimation() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Center(
+          child: Lottie.asset(
+            'assets/animations/like.json',
+            controller: _likeAnimationController,
+            width: 200,
+            height: 200,
+            repeat: false,
+            onLoaded: (composition) {
+              _likeAnimationController.duration = composition.duration;
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFavoritesPage() {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Stack(
+        children: [
+          _favoriteImages.isEmpty
+              ? _buildEmptyFavoritesView()
+              : _buildFavoritesGrid(),
+          if (_isProcessing) _buildProcessingOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyFavoritesView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.favorite_border_rounded,
+              size: 80,
+              color: Colors.red.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            "Henüz favorilerinize resim eklemediniz",
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Theme.of(context).textTheme.titleMedium?.color?.withOpacity(0.7),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Beğendiğiniz resimleri çift tıklayarak favorilerinize ekleyin",
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFavoritesGrid() {
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.all(16),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.65,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+            ),
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) => _favoriteImageWidgets[index],
+              childCount: _favoriteImageWidgets.length,
+            ),
+          ),
+        ),
+        const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+      ],
+    );
+  }
+
+  Widget _buildProcessingOverlay() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "İşlem yapılıyor...",
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingGrid() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: List.generate(3, (index) =>
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ),
+      ),
+    );
+  }
+
+  // Image building methods
+  void _loadInitialImages() {
+    _imageWidgets.clear();
+    final int loadCount = math.min(_initialLoadCount, _imageList.length);
+
+    for (int i = 0; i < loadCount; i++) {
+      _imageWidgets.add(_buildImageWidget(_imageList[i]));
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  Widget _buildImageWidget(ImageList imageData) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      child: Hero(
+        tag: imageData.id,
+        child: CachedNetworkImage(
+          imageUrl: "${ayarlar.resimsunucusu}${imageData.yol}",
+          fit: BoxFit.cover,
+          memCacheWidth: 800,
+          memCacheHeight: 1200,
+          placeholder: (context, url) => Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.grey[300]!,
+                  Colors.grey[400]!,
+                ],
+              ),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
+              ),
+            ),
+          ),
+          errorWidget: (context, url, error) => Container(
+            color: Colors.grey[300],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: Colors.grey[600],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Resim yüklenemedi",
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Category building methods
+  void _buildCategoryWidgets() {
+    _categoryWidgets.clear();
+
+    for (int i = 0; i < Genel.Kategoriler.length; i++) {
+      _categoryWidgets.add(_buildCategoryWidget(Genel.Kategoriler[i], i));
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  Widget _buildCategoryWidget(KategoriList category, int index) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _navigateToCategory(index),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            height: 180,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CachedNetworkImage(
+                      imageUrl: "${ayarlar.resimsunucusu}${category.kategorI_RESMI}",
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey[300],
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            category.kategori,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(
+                                  offset: Offset(1, 1),
+                                  blurRadius: 3,
+                                  color: Colors.black54,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.photo_library_outlined,
+                                color: Colors.white70,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "Koleksiyonu görüntüle",
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ).scrollTransition((context, widget, event) {
+          return widget
+              .blur(event.phase == ScrollPhase.identity ? 0 : 3)
+              .scale(event.phase == ScrollPhase.identity ? 1 : 0.97);
+        }),
+      ),
+    );
+  }
+
+  // Favorite images methods
+  void _loadFavoriteImages() {
+    _favoriteImages.clear();
+    _favoriteImageWidgets.clear();
+
+    for (var image in _imageList) {
+      if (Yardimci.favori_resimler_Kontrol(image.id)) {
+        _favoriteImages.add(image);
+      }
+    }
+
+    _favoriteImages.shuffle(math.Random());
+
+    for (var image in _favoriteImages) {
+      _favoriteImageWidgets.add(_buildFavoriteImageWidget(image));
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  Widget _buildFavoriteImageWidget(ImageList imageData) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _navigateToImageDetail(imageData),
+        onLongPress: () => _showImageContextMenu(imageData),
+        onTapDown: (details) => _getTapPosition(details),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                CachedNetworkImage(
+                  imageUrl: "${ayarlar.resimsunucusu}${imageData.yol}",
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.error),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.red.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.favorite,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Event handlers
+  void _onImageDoubleTap() {
+    HapticFeedback.mediumImpact();
+    _toggleFavorite();
+  }
+
+  void _onImagePageChanged(int index) {
+    setState(() {
+      _currentImageIndex = index;
+    });
+
+    _updateFavoriteButtonColor();
+
+    // Load more images when near the end
+    if (index >= _imageWidgets.length - 1) {
+      _loadMoreImages();
+    }
+  }
+
+  void _loadMoreImages() {
+    final int currentLength = _imageWidgets.length;
+    final int remainingImages = _imageList.length - currentLength;
+    final int loadCount = math.min(_loadMoreCount, remainingImages);
+
+    if (loadCount > 0) {
+      for (int i = 0; i < loadCount; i++) {
+        _imageWidgets.add(_buildImageWidget(_imageList[currentLength + i]));
+      }
+
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _updateFavoriteButtonColor() {
+    if (_currentImageIndex < _imageList.length) {
+      setState(() {
+        _favoriteButtonColor = Yardimci.favori_resimler_Kontrol(
+          _imageList[_currentImageIndex].id,
+        ) ? Colors.red : Colors.white;
       });
     }
   }
 
-  void GetCardWidget(String ImageUrl, int Id) {
-    print(">> Id : " + Id.toString());
-    print(">> ImageUrl : " + ImageUrl.toString());
+  void _toggleFavorite() {
+    if (_currentImageIndex < _imageList.length) {
+      final imageId = _imageList[_currentImageIndex].id;
+      _addToFavorites(imageId);
 
-    listResim.add(Stack(
-      children: [
-        Container(
-          child: Image.network(
-            fit: BoxFit.cover,
-            ayarlar.resimsunucusu + ImageUrl,
-            width: Genel.genislik,
-            height: Genel.yukseklik,
-            loadingBuilder: (BuildContext context, Widget child,
-                ImageChunkEvent? loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                      : null,
-                ),
-              );
-            },
-          ),
-        )
-      ],
-    ));
+      // Show like animation only when adding to favorites
+      if (Yardimci.favori_resimler_Kontrol(imageId)) {
+        setState(() {
+          _showLikeAnimation = true;
+        });
+
+        _likeAnimationController.forward().then((_) {
+          _likeAnimationController.reset();
+          setState(() {
+            _showLikeAnimation = false;
+          });
+        });
+      }
+
+      _updateFavoriteButtonColor();
+    }
   }
 
-  void GetFavoriCardWidget(String ImageUrl, int Id) {
-    print(">> Id : " + Id.toString());
-    print("listFavoriResim" + listFavoriResim.toString());
-    setState(() {
-      listFavoriResim.add(Stack(
-        children: [
-          GestureDetector(
-            child: Container(
-              child: Image.network(
-                fit: BoxFit.cover,
-                ayarlar.resimsunucusu + ImageUrl,
-                width: Genel.genislik,
-                height: Genel.yukseklik,
-                loadingBuilder: (BuildContext context, Widget child,
-                    ImageChunkEvent? loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  );
-                },
-              ),
-            ),
-            onTap: () {
-              String kategori = "";
-              for (var i in Genel.Resimler) {
-                if (i.id == Id) {
-                  kategori = i.kategori;
-                }
-              }
-              print("Seçilen resm" + ImageUrl);
-              Genel.SecilenResimler = ImageList(Id, ImageUrl, kategori);
+  void _navigateToCategory(int categoryIndex) {
+    HapticFeedback.lightImpact();
+    Genel.SecilenKategori = categoryIndex.toString();
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => KategoriResim(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.ease;
 
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ImageDetay()),
-                /*MaterialPageRoute(
-                      builder: (context) => ImageDetay(ImageUrl, Id))
-              */
-              );
-            },
-            onTapDown: (details) => _getTapPosition(details),
-            onLongPress: () {
-              print("Resime uzun basıldı tıklandı id : " +
-                  Id.toString() +
-                  "Url :" +
-                  ImageUrl);
-              _showContextMenu(context, ImageUrl, Id);
-            },
-          )
-        ],
-      ));
-    });
+          var tween = Tween(begin: begin, end: end).chain(
+            CurveTween(curve: curve),
+          );
+
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
+  void _navigateToImageDetail(ImageList imageData) {
+    HapticFeedback.lightImpact();
+    Genel.SecilenResimler = imageData;
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => ImageDetay(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
+  // Utility methods
   void _getTapPosition(TapDownDetails details) {
     final RenderBox referenceBox = context.findRenderObject() as RenderBox;
     setState(() {
       _tapPosition = referenceBox.globalToLocal(details.globalPosition);
     });
   }
+// Sayfalar.dart dosyasında _setWallpaperWithConfirmation metodunu değiştirin:
 
-  void _showContextMenu(BuildContext context, String ImageUrl, int Id) async {
-    final RenderObject? overlay =
-        Overlay.of(context)?.context.findRenderObject();
+  void _setWallpaperWithConfirmation() {
+    HapticFeedback.lightImpact();
+    _showWallpaperLocationDialog();
+  }
 
-    final result = await showMenu(
-        context: context,
-
-        // Show the context menu at the tap location
-        position: RelativeRect.fromRect(
-            Rect.fromLTWH(_tapPosition.dx, _tapPosition.dy, 30, 30),
-            Rect.fromLTWH(0, 0, overlay!.paintBounds.size.width,
-                overlay.paintBounds.size.height)),
-        // set a list of choices for the context menu
-        items: [
-          PopupMenuItem(
-            value: 'Favorilerden Çıkar',
-            child: Text(
-              'Favorilerden Çıkar',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 15,
-                  color: Genel.darkbutton ? Colors.white : Colors.black),
-            ),
+  void _showWallpaperLocationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-          PopupMenuItem(
-            value: 'Duvar Kağıdı Yap',
-            child: Text(
-              'Duvar Kağıdı Yap',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 15,
-                  color: Genel.darkbutton ? Colors.white : Colors.black),
-            ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.wallpaper_rounded,
+                  color: Colors.teal,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                "Duvar Kağıdı",
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          PopupMenuItem(
-            value: 'İndir',
-            child: Text(
-              'İndir',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontSize: 15,
-                  color: Genel.darkbutton ? Colors.white : Colors.black),
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Duvar kağıdını nereye uygulamak istiyorsunuz?",
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildWallpaperOption(
+                icon: Icons.lock_outline_rounded,
+                title: "Kilit Ekranı",
+                subtitle: "Sadece kilit ekranında görünür",
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _performSetWallpaper(_imageList[_currentImageIndex], WallpaperManagerFlutter.lockScreen);
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildWallpaperOption(
+                icon: Icons.home_outlined,
+                title: "Ana Ekran",
+                subtitle: "Sadece ana ekranda görünür",
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _performSetWallpaper(_imageList[_currentImageIndex], WallpaperManagerFlutter.homeScreen);
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildWallpaperOption(
+                icon: Icons.phone_android_rounded,
+                title: "Her İki Ekran",
+                subtitle: "Hem kilit hem ana ekranda görünür",
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _performSetWallpaper(_imageList[_currentImageIndex], WallpaperManagerFlutter.bothScreens);
+                },
+              ),
+            ],
           ),
-        ]);
-    // Implement the logic for each choice here
-    switch (result) {
-      case 'Favorilerden Çıkar':
-        FavorilereEkle(Id);
-        FavoriResimListDoldur();
-        break;
-      case 'Duvar Kağıdı Yap':
-        QuickAlert.show(
-          context: context,
-          type: QuickAlertType.confirm,
-          title: "Uyarı",
-          text: "Seçilen görsel duvar kağıdı yapılacak onaylıyor musunuz?",
-          confirmBtnText: 'Evet',
-          cancelBtnText: 'Hayır',
-          onConfirmBtnTap: () {
-            if (ayarlar.odullureklamacikmi == "1") {
-              if (Genel.reklam == null) {
-                setWallpaper(ImageUrl, Id);
-                KategoriList.ReklamYukle(context);
-              } else {
-                Genel.reklam?.show(onUserEarnedReward:
-                    (AdWithoutView ad, RewardItem rewardItem) {
-                  Navigator.of(context, rootNavigator: true).pop('dialog');
-
-                  setWallpaper(ImageUrl, Id);
-                  KategoriList.ReklamYukle(context);
-                });
-              }
-            } else {
-              setWallpaper(ImageUrl, Id);
-            }
-          },
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                "İptal",
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                ),
+              ),
+            ),
+          ],
         );
-        break;
-      case 'İndir':
-        if (ayarlar.odullureklamacikmi == "1") {
-        if (Genel.reklam == null) {
-          Download(ImageUrl, Id);
-          FavoriResimListDoldur();
-          KategoriList.ReklamYukle(context);
-        } else {
-          Genel.reklam?.show(
-              onUserEarnedReward: (AdWithoutView ad, RewardItem rewardItem) {
-            Download(ImageUrl, Id);
-            FavoriResimListDoldur();
-            KategoriList.ReklamYukle(context);
-          });
-        }}
-        else
-        {
-          Download(ImageUrl, Id);
+      },
+    );
+  }
+
+  Widget _buildWallpaperOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.3),
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: Colors.teal,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16,
+                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+// _performSetWallpaper metodunu da güncelleyin:
+  Future<void> _performSetWallpaper(ImageList imageData, int wallpaperLocation) async {
+    try {
+      setState(() => _isProcessing = true);
+
+      final url = "${ayarlar.resimsunucusu}${imageData.yol}";
+      final file = await DefaultCacheManager().getSingleFile(url);
+
+      final result = await WallpaperManagerFlutter().setWallpaper(file, wallpaperLocation);
+
+      if (result) {
+        await Kullanici.IslemLog(
+          context,
+          Genel.CihazId,
+          "Duvar Kagidi Yapma",
+          imageData.id,
+        );
+
+        String locationText = "";
+        switch (wallpaperLocation) {
+          case 1: // WallpaperManagerFlutter.homeScreen
+            locationText = "ana ekrana";
+            break;
+          case 2: // WallpaperManagerFlutter.lockScreen
+            locationText = "kilit ekranına";
+            break;
+          case 3: // WallpaperManagerFlutter.bothScreens
+            locationText = "her iki ekrana";
+            break;
         }
 
+        _showSuccessAlert("Duvar kağıdı $locationText başarıyla ayarlandı!");
+      } else {
+        _showErrorAlert("Duvar kağıdı ayarlanamadı");
+      }
+    } catch (e) {
+      _showErrorAlert("Bir hata oluştu: ${e.toString()}");
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
+// _setWallpaper metodunu da güncelleyin:
+  void _setWallpaper() {
+    if (_currentImageIndex < _imageList.length) {
+      final imageData = _imageList[_currentImageIndex];
+
+      if (ayarlar.odullureklamacikmi == "1") {
+        _showRewardedAdForAction(() => _showWallpaperLocationDialog());
+      } else {
+        _showWallpaperLocationDialog();
+      }
+    }
+  }
+  // Action methods
+
+
+  void _downloadImage() {
+    if (_currentImageIndex < _imageList.length) {
+      final imageData = _imageList[_currentImageIndex];
+
+      if (ayarlar.odullureklamacikmi == "1") {
+        _showRewardedAdForAction(() => _download(imageData));
+      } else {
+        _download(imageData);
+      }
+    }
+  }
+
+
+
+  void _showRewardedAdForAction(VoidCallback action) {
+    if (Genel.reklam == null) {
+      action();
+      KategoriList.ReklamYukle(context);
+    } else {
+      Genel.reklam?.show(onUserEarnedReward: (ad, rewardItem) {
+        ad.dispose();
+        action();
+        KategoriList.ReklamYukle(context);
+      });
+    }
+  }
+  Future<void> _download(ImageList imageData) async {
+    try {
+      setState(() => _isProcessing = true);
+
+      final imageUrl = "${ayarlar.resimsunucusu}${imageData.yol}";
+      final DateTime now = DateTime.now();
+
+      // 1️⃣ Resmi indir
+      final response = await Dio().get(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      final Uint8List imageBytes = Uint8List.fromList(response.data);
+
+      final PermissionState ps = await PhotoManager.requestPermissionExtend();
+      if (!ps.isAuth && ps != PermissionState.limited) {
+        _showErrorAlert("Galeriyi kaydetmek için izin verilmedi.");
+        return;
+      }
+
+
+      // 3️⃣ Resmi kaydet
+      final asset = await PhotoManager.editor.saveImage(
+        imageBytes,
+        filename:"wallpaper_${now.millisecondsSinceEpoch}",
+        title: "wallpaper_${now.millisecondsSinceEpoch}",
+      );
+
+      if (asset != null) {
+        // 4️⃣ İşlem log kaydı
+        await Kullanici.IslemLog(context, Genel.CihazId, "Download", imageData.id);
+        _showSuccessAlert("Resim başarıyla indirildi!");
+      } else {
+        _showErrorAlert("Resim indirilemedi");
+      }
+    } catch (e) {
+      _showErrorAlert("Bir hata oluştu: ${e.toString()}");
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
+
+  Future<void> _addToFavorites(int imageId) async {
+    try {
+      await ImageList.FavorilereEkle(context, imageId);
+      Yardimci.favori_resim_ekle(imageId.toString());
+
+      // Refresh favorites if on favorites page
+      if (_selectedIndex == 2) {
+        _loadFavoriteImages();
+      }
+    } catch (e) {
+      _showErrorAlert("Favorilere eklenemedi");
+    }
+  }
+
+  void _showImageContextMenu(ImageList imageData) async {
+    HapticFeedback.lightImpact();
+    final RenderObject? overlay = Overlay.of(context)?.context.findRenderObject();
+
+    final result = await showMenu(
+      context: context,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(_tapPosition.dx, _tapPosition.dy, 30, 30),
+        Rect.fromLTWH(
+          0,
+          0,
+          overlay!.paintBounds.size.width,
+          overlay.paintBounds.size.height,
+        ),
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'remove_favorite',
+          child: Row(
+            children: [
+              Icon(Icons.favorite_border, color: Colors.red, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                'Favorilerden Çıkar',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'set_wallpaper',
+          child: Row(
+            children: [
+              Icon(Icons.wallpaper, color: Colors.blue, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                'Duvar Kağıdı Yap',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'download',
+          child: Row(
+            children: [
+              Icon(Icons.download, color: Colors.green, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                'İndir',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    _handleContextMenuAction(result, imageData);
+  }
+
+  void _handleContextMenuAction(String? action, ImageList imageData) {
+    switch (action) {
+      case 'remove_favorite':
+        _addToFavorites(imageData.id);
+        break;
+      case 'set_wallpaper':
+        _setWallpaperWithConfirmation();
+        break;
+      case 'download':
+        _download(imageData);
         break;
     }
   }
 
-  Cikis() {
-    Yardimci.AlertDialogExit(
-        context as BuildContext, "Çıkış", "Çıkmak istediğinize emin misiniz?");
+  void _showSuccessAlert(String message) {
+    QuickAlert.show(
+      context: context,
+      type: QuickAlertType.success,
+      title: "Başarılı!",
+      text: message,
+      confirmBtnColor: Colors.teal,
+    );
   }
 
-  Future<void> Download(String UrlImage, int Id) async {
-    try {
-      setState(() {
-        islem = true;
-      });
-      UrlImage = ayarlar.resimsunucusu + UrlImage;
-      print("UrlImage" + UrlImage.toString());
-      DateTime now = new DateTime.now();
-      DateTime date = new DateTime(
-          now.year, now.month, now.day, now.hour, now.minute, now.second);
-      var response = await Dio()
-          .get(UrlImage, options: Options(responseType: ResponseType.bytes));
-      final result = await ImageGallerySaver.saveImage(
-          Uint8List.fromList(response.data),
-          quality: 60,
-          name: date.toString());
-      print("resul" + result.toString());
-
-      if (result.toString().contains("true")) {
-        Kullanici.IslemLog(context, Genel.CihazId, "Download", Id);
-        Yardimci.AlertDialogBasarili(context as BuildContext, "Başarılı",
-            "İşlem başarılı şekilde gerçekleşti");
-      } else {
-        Yardimci.AlertDialogError(context as BuildContext, "Hata oluştu",
-            "İşlem gerçekleştirilemedi");
-      }
-      setState(() {
-        islem = false;
-      });
-    } on PlatformException {
-      setState(() {
-        islem = false;
-      });
-      Yardimci.AlertDialogError(
-          context as BuildContext, "Hata oluştu", "İşlem gerçekleştirilemedi");
-    }
-  }
-
-  Future<void> setWallpaper(String ImageUrl, int id) async {
-    try {
-      setState(() {
-        islem = true;
-      });
-      String url = ayarlar.resimsunucusu + ImageUrl;
-      int location = WallpaperManager
-          .LOCK_SCREEN; // or location = WallpaperManager.LOCK_SCREEN;
-      var file = await DefaultCacheManager().getSingleFile(url);
-      final bool result =
-          await WallpaperManager.setWallpaperFromFile(file.path, location);
-      print(result);
-      if (result == true) {
-        Kullanici.IslemLog(context, Genel.CihazId, "Duvar Kagidi Yapma", id);
-        Yardimci.AlertDialogBasarili(context as BuildContext, "Başarılı",
-            "İşlem başarılı şekilde gerçekleşti");
-      } else {
-        Yardimci.AlertDialogError(context as BuildContext, "Hata oluştu",
-            "İşlem gerçekleştirilemedi");
-      }
-
-      setState(() {
-        islem = false;
-      });
-    } on PlatformException {
-      setState(() {
-        islem = false;
-      });
-      Yardimci.AlertDialogError(
-          context as BuildContext, "Hata oluştu", "İşlem gerçekleştirilemedi");
-    }
-  }
-
-  Future<void> FavorilereEkle(int Id) async {
-    try {
-      ImageList.FavorilereEkle(context, Id);
-      Yardimci.favori_resim_ekle(Id.toString());
-      FavoriResimListDoldur();
-      print("listFavoriResim" + listFavoriResim.length.toString());
-    } on PlatformException {
-      Yardimci.AlertDialogError(
-          context as BuildContext, "Hata oluştu", "İşlem gerçekleştirilemedi");
-    }
+  void _showErrorAlert(String message) {
+    QuickAlert.show(
+      context: context,
+      type: QuickAlertType.error,
+      title: "Hata!",
+      text: message,
+      confirmBtnColor: Colors.red,
+    );
   }
 }
