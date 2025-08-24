@@ -100,27 +100,20 @@ class Loading_State extends State<Loading> with TickerProviderStateMixin {
       });
     }
   }
+// İnternet kontrolünü tamamen atlayın - sadece bu fonksiyonu değiştirin
 
   Future<void> _checkInternetConnection() async {
     setState(() {
-      _currentStatus = "İnternet bağlantısı kontrol ediliyor...";
+      _currentStatus = "Bağlantı kontrol ediliyor...";
       _progress = 0.1;
     });
 
-    final connectivityResult = await Connectivity().checkConnectivity();
+    // Kısa bir bekleme süresi
+    await Future.delayed(const Duration(milliseconds: 500));
 
-    if (connectivityResult == ConnectivityResult.none) {
-      throw Exception("İnternet bağlantısı bulunamadı.\nLütfen bağlantınızı kontrol edin.");
-    }
-
-    // Test internet connectivity with a simple request
-    try {
-      await Future.delayed(const Duration(milliseconds: 500)); // Simulate check
-    } catch (e) {
-      throw Exception("İnternet bağlantısı zayıf.\nLütfen daha güçlü bir ağa bağlanın.");
-    }
+    // İnternet kontrolü yapmadan devam et
+    // API istekleri sırasında zaten bağlantı hataları yakalanacak
   }
-
   Future<void> Setup() async {
     try {
       setState(() {

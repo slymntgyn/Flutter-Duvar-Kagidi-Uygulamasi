@@ -14,7 +14,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
+import 'package:wallpaper_manager_plus/wallpaper_manager_plus.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hyper_effects/hyper_effects.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -314,7 +314,7 @@ class _ImageDetayState extends State<ImageDetay>
                 subtitle: "Sadece kilit ekranında görünür",
                 onTap: () {
                   Navigator.of(context).pop();
-                  _performAction(() => _setWallpaper(WallpaperManagerFlutter.lockScreen));
+                  _performAction(() => _setWallpaper(WallpaperManagerPlus.lockScreen));
                 },
               ),
               const SizedBox(height: 8),
@@ -324,7 +324,7 @@ class _ImageDetayState extends State<ImageDetay>
                 subtitle: "Sadece ana ekranda görünür",
                 onTap: () {
                   Navigator.of(context).pop();
-                  _performAction(() => _setWallpaper(WallpaperManagerFlutter.homeScreen));
+                  _performAction(() => _setWallpaper(WallpaperManagerPlus.homeScreen));
                 },
               ),
               const SizedBox(height: 8),
@@ -334,7 +334,7 @@ class _ImageDetayState extends State<ImageDetay>
                 subtitle: "Hem kilit hem ana ekranda görünür",
                 onTap: () {
                   Navigator.of(context).pop();
-                  _performAction(() => _setWallpaper(WallpaperManagerFlutter.bothScreens));
+                  _performAction(() => _setWallpaper(WallpaperManagerPlus.bothScreens));
                 },
               ),
             ],
@@ -432,9 +432,9 @@ class _ImageDetayState extends State<ImageDetay>
       final url = ayarlar.resimsunucusu + Genel.SecilenResimler.yol;
       final file = await DefaultCacheManager().getSingleFile(url);
 
-      final result = await WallpaperManagerFlutter().setWallpaper(file, wallpaperLocation);
+      final result = await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
 
-      if (result) {
+      if (result!.isEmpty) {
         await Kullanici.IslemLog(
           context,
           Genel.CihazId,

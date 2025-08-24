@@ -1,5 +1,5 @@
-package com.benim.ilk.uygulamam.senseriduvarkagidi
+    package com.benim.ilk.uygulamam.senseriduvarkagidi
 
-import io.flutter.embedding.android.FlutterActivity
+    import io.flutter.embedding.android.FlutterActivity
 
-class MainActivity: FlutterActivity()
+    class MainActivity: FlutterActivity()

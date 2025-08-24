@@ -13,7 +13,7 @@ import 'package:flutter/rendering.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
+import 'package:wallpaper_manager_plus/wallpaper_manager_plus.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hyper_effects/hyper_effects.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -771,9 +771,9 @@ class _KategoriResimState extends State<KategoriResim>
                 onTap: () {
                   Navigator.of(context).pop();
                   if (ayarlar.odullureklamacikmi == "1") {
-                    _showRewardedAdForAction(() => _performSetWallpaper(imageData, WallpaperManagerFlutter.lockScreen));
+                    _showRewardedAdForAction(() => _performSetWallpaper(imageData, WallpaperManagerPlus.lockScreen));
                   } else {
-                    _performSetWallpaper(imageData, WallpaperManagerFlutter.lockScreen);
+                    _performSetWallpaper(imageData, WallpaperManagerPlus.lockScreen);
                   }
                 },
               ),
@@ -785,9 +785,9 @@ class _KategoriResimState extends State<KategoriResim>
                 onTap: () {
                   Navigator.of(context).pop();
                   if (ayarlar.odullureklamacikmi == "1") {
-                    _showRewardedAdForAction(() => _performSetWallpaper(imageData, WallpaperManagerFlutter.homeScreen));
+                    _showRewardedAdForAction(() => _performSetWallpaper(imageData, WallpaperManagerPlus.homeScreen));
                   } else {
-                    _performSetWallpaper(imageData, WallpaperManagerFlutter.homeScreen);
+                    _performSetWallpaper(imageData, WallpaperManagerPlus.homeScreen);
                   }
                 },
               ),
@@ -799,9 +799,9 @@ class _KategoriResimState extends State<KategoriResim>
                 onTap: () {
                   Navigator.of(context).pop();
                   if (ayarlar.odullureklamacikmi == "1") {
-                    _showRewardedAdForAction(() => _performSetWallpaper(imageData, WallpaperManagerFlutter.bothScreens));
+                    _showRewardedAdForAction(() => _performSetWallpaper(imageData, WallpaperManagerPlus.bothScreens));
                   } else {
-                    _performSetWallpaper(imageData, WallpaperManagerFlutter.bothScreens);
+                    _performSetWallpaper(imageData, WallpaperManagerPlus.bothScreens);
                   }
                 },
               ),
@@ -900,9 +900,9 @@ class _KategoriResimState extends State<KategoriResim>
       final url = "${ayarlar.resimsunucusu}${imageData.yol}";
       final file = await DefaultCacheManager().getSingleFile(url);
 
-      final result = await WallpaperManagerFlutter().setWallpaper(file, wallpaperLocation);
+      final result = await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
 
-      if (result) {
+      if (result!.isEmpty) {
         await Kullanici.IslemLog(
           context,
           Genel.CihazId,

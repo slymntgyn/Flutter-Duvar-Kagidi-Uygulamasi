@@ -125,31 +125,43 @@ var aa=0;
 return aa;
   }
   static Future<String> Cihaz_Bilgi_Getir() async {
-    final deviceInfo = DeviceInfoPlugin();
     String deviceId = "";
 
-    if (Platform.isAndroid) {
-      var androidInfo = await deviceInfo.androidInfo;
-      // Bazı güvenilir alanları birleştiriyoruz
-      deviceId =
-      "${androidInfo.id}-${androidInfo.manufacturer}-${androidInfo.model}-${androidInfo.id}";
-    } else if (Platform.isIOS) {
-      var iosInfo = await deviceInfo.iosInfo;
-      deviceId =
-      "${iosInfo.identifierForVendor}-${iosInfo.model}-${iosInfo.systemName}-${iosInfo.systemVersion}";
-    } else {
-      deviceId = "UnknownDevice";
+    try {
+      // Kaydedilmiş ID kontrol et
+      final prefs = await SharedPreferences.getInstance();
+      deviceId = prefs.getString('device_unique_id') ?? '';
+
+      if (deviceId.isEmpty) {
+        // Yeni ID oluştur
+        String platform = Platform.isAndroid ? "AND" : "IOS";
+        String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+        String random = Random().nextInt(999999).toString().padLeft(6, '0');
+
+        deviceId = "$platform-$timestamp-$random";
+
+        // Kaydet ki bir daha oluşturmasın
+        await prefs.setString('device_unique_id', deviceId);
+        print("Yeni cihaz ID oluşturuldu: $deviceId");
+      } else {
+        print("Mevcut cihaz ID kullanılıyor: $deviceId");
+      }
+
+    } catch (e) {
+      print("Cihaz ID hatası: $e");
+      // En basit fallback
+      deviceId = "DEV-${DateTime.now().millisecondsSinceEpoch}";
     }
 
-    // Tekil bir ID olsun diye SHA256 hashliyoruz
+    // SHA256 ile hash'le
     var bytes = utf8.encode(deviceId);
     var digest = sha256.convert(bytes);
-    deviceId = digest.toString();
+    String finalId = digest.toString();
 
-    Genel.CihazId = "CIHAZ : ${deviceId.trim()}";
+    Genel.CihazId = "CIHAZ : ${finalId.trim()}";
     print(Genel.CihazId);
 
-    return deviceId;
+    return finalId;
   }
 
   static void Sayfa_Gecisi(BuildContext context, Widget newPage) {

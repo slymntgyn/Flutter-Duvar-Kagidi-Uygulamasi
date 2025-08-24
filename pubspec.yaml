@@ -35,16 +35,6 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^4.0.0 # Linting rules
   loading_animation_widget: ^1.2.1
   http: ^1.2.2 #Web apiye bağlanmak için
@@ -53,9 +43,9 @@ dev_dependencies:
   json_table: ^2.0.1 #Raporlardaki tablolar için
   cached_network_image: ^3.4.1 # Ağdan önbelleğe alınmış görüntüler için
   device_info_plus: ^11.5.0 # Cihaz bilgileri için
-  wallpaper_manager_flutter: ^1.0.1 # Duvar kağıdı yapabilmek için
+  wallpaper_manager_plus: ^1.0.1 # Duvar kağıdı yapabilmek için
   flutter_cache_manager: ^3.4.1 # Hafıza erişimi için
-  photo_manager: ^3.7.1 # Fotoğraf yöneticisi için
+  photo_manager: any # Fotoğraf yöneticisi için
   dio: ^5.6.0 # HTTP istemcisi için
   stylish_bottom_bar: ^1.1.0 # Şık alt çubuk için
   like_button: ^2.0.5 # Beğen butonu için
@@ -74,6 +64,16 @@ dev_dependencies:
   provider: ^6.1.2 # Durum yönetimi için
   google_mobile_ads: ^5.1.0 # Google Mobil Reklamlar için
   crypto: ^3.0.5 # Şifreleme için
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

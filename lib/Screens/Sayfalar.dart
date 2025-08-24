@@ -14,7 +14,8 @@ import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
+import 'package:senseriduvarkagidi/Screens/YapayZeka.dart';
+import 'package:wallpaper_manager_plus/wallpaper_manager_plus.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:hyper_effects/hyper_effects.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -55,6 +56,7 @@ class _SayfalarState extends State<Sayfalar>
   late PageController _imagePageController;
   late AnimationController _likeAnimationController;
   late AnimationController _buttonAnimationController;
+  late AnimationController _aiButtonAnimationController; // AI buton animasyonu için
 
   // Banner Ad
   BannerAd? _bannerAd;
@@ -79,6 +81,9 @@ class _SayfalarState extends State<Sayfalar>
   static const int _initialLoadCount = 3;
   static const int _loadMoreCount = 2;
 
+  // Wallpaper işlem kontrolü için
+  bool _isWallpaperProcessing = false;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -101,6 +106,10 @@ class _SayfalarState extends State<Sayfalar>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+    _aiButtonAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
   }
 
   void _initializeBannerAd() {
@@ -111,9 +120,11 @@ class _SayfalarState extends State<Sayfalar>
         size: AdSize.banner,
         listener: BannerAdListener(
           onAdLoaded: (_) {
-            setState(() {
-              _isBannerAdReady = true;
-            });
+            if (mounted) {
+              setState(() {
+                _isBannerAdReady = true;
+              });
+            }
           },
           onAdFailedToLoad: (ad, err) {
             print('Failed to load a banner ad: ${err.message}');
@@ -145,6 +156,17 @@ class _SayfalarState extends State<Sayfalar>
       _buildCategoryWidgets();
       _loadInitialImages();
       _updateFavoriteButtonColor();
+      _startAIButtonAnimation(); // AI buton animasyonunu başlat
+    });
+  }
+
+  void _startAIButtonAnimation() {
+    Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted && _selectedIndex == 0) { // Sadece kategoriler sayfasındayken
+        _aiButtonAnimationController.forward().then((_) {
+          _aiButtonAnimationController.reverse();
+        });
+      }
     });
   }
 
@@ -154,6 +176,7 @@ class _SayfalarState extends State<Sayfalar>
     _imagePageController.dispose();
     _likeAnimationController.dispose();
     _buttonAnimationController.dispose();
+    _aiButtonAnimationController.dispose();
     _bannerAd?.dispose();
     super.dispose();
   }
@@ -291,7 +314,13 @@ class _SayfalarState extends State<Sayfalar>
       slivers: [
         // App Header için sabit alan
         SliverToBoxAdapter(
-          child: _buildAppHeader(),
+          child: Column(
+            children: [
+              _buildAppHeader(),
+              const SizedBox(height: 16),
+              _buildAIWallpaperButton(), // AI buton eklendi
+            ],
+          ),
         ),
 
         SliverPadding(
@@ -376,7 +405,168 @@ class _SayfalarState extends State<Sayfalar>
       ),
     );
   }
+  Widget _buildAIWallpaperButton() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: AnimatedBuilder(
+        animation: _aiButtonAnimationController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: 1.0 + (_aiButtonAnimationController.value * 0.05),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _navigateToAIWallpaperGenerator,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF667eea),
+                        const Color(0xFF764ba2),
+                        Colors.purple.shade400,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.purple.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.2),
+                        blurRadius: 15,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // AI İcon Container
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: ShaderMask(
+                          shaderCallback: (bounds) => LinearGradient(
+                            colors: [Colors.white, Colors.white.withOpacity(0.8)],
+                          ).createShader(bounds),
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
 
+                      // Text Content
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min, // 👈 overflow engellendi
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  'AI Duvar Kağıdı Oluştur',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Flexible(
+                              child: Text(
+                                'Hayal gücünüzle...',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontSize: 13,
+                                ),
+                                overflow: TextOverflow.ellipsis, // taşmayı önler
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Arrow Icon
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: Colors.white.withOpacity(0.8),
+                          size: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _navigateToAIWallpaperGenerator() {
+    HapticFeedback.mediumImpact();
+
+    // Animasyon efekti
+    _aiButtonAnimationController.forward().then((_) {
+      _aiButtonAnimationController.reverse();
+    });
+
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+        const AIWallpaperGenerator(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(0.0, 1.0);
+          const end = Offset.zero;
+          const curve = Curves.fastOutSlowIn;
+
+          var tween = Tween(begin: begin, end: end).chain(
+            CurveTween(curve: curve),
+          );
+
+          var fadeAnimation = Tween(begin: 0.0, end: 1.0).animate(
+            CurvedAnimation(parent: animation, curve: curve),
+          );
+
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: FadeTransition(
+              opacity: fadeAnimation,
+              child: child,
+            ),
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
 
   void _toggleTheme(bool value) {
     HapticFeedback.selectionClick();
@@ -961,26 +1151,57 @@ class _SayfalarState extends State<Sayfalar>
     }
   }
 
-  void _toggleFavorite() {
-    if (_currentImageIndex < _imageList.length) {
+  // DÜZELTME 1: Favorileme fonksiyonunu daha stabil hale getiriyoruz
+  void _toggleFavorite() async {
+    if (_currentImageIndex < _imageList.length && mounted) {
       final imageId = _imageList[_currentImageIndex].id;
-      _addToFavorites(imageId);
+      final bool isFavorite = Yardimci.favori_resimler_Kontrol(imageId);
 
-      // Show like animation only when adding to favorites
-      if (Yardimci.favori_resimler_Kontrol(imageId)) {
-        setState(() {
-          _showLikeAnimation = true;
-        });
+      try {
+        // Favorilere ekleme/çıkarma işlemi (tek fonksiyon kullanıyoruz)
+        await ImageList.FavorilereEkle(context, imageId);
 
-        _likeAnimationController.forward().then((_) {
-          _likeAnimationController.reset();
+        if (!isFavorite) {
+          // Favorilere ekliyoruz
+          Yardimci.favori_resim_ekle(imageId.toString());
+
+          // UI güncellemesi
           setState(() {
-            _showLikeAnimation = false;
+            _favoriteButtonColor = Colors.red;
+            _showLikeAnimation = true;
           });
-        });
-      }
 
-      _updateFavoriteButtonColor();
+          // Animasyonu göster
+          _likeAnimationController.forward().then((_) {
+            _likeAnimationController.reset();
+            if (mounted) {
+              setState(() {
+                _showLikeAnimation = false;
+              });
+            }
+          });
+        } else {
+          // Favorilerden çıkarıyoruz (local storage'dan)
+          Yardimci.favori_resim_ekle(imageId.toString()); // Bu fonksiyon toggle işlemi yapıyordur
+
+          // UI güncellemesi
+          setState(() {
+            _favoriteButtonColor = Colors.white;
+          });
+        }
+
+        // Favorites sayfasındaysak listeyi güncelle
+        if (_selectedIndex == 2) {
+          _loadFavoriteImages();
+        }
+
+      } catch (e) {
+        // Hata durumunda butonun rengini güncel duruma göre ayarla
+        if (mounted) {
+          _updateFavoriteButtonColor();
+        }
+        _showErrorAlert("İşlem tamamlanamadı");
+      }
     }
   }
 
@@ -1030,11 +1251,30 @@ class _SayfalarState extends State<Sayfalar>
       _tapPosition = referenceBox.globalToLocal(details.globalPosition);
     });
   }
-// Sayfalar.dart dosyasında _setWallpaperWithConfirmation metodunu değiştirin:
 
   void _setWallpaperWithConfirmation() {
+    if (_isWallpaperProcessing) return; // Çift işlemi engelle
+
     HapticFeedback.lightImpact();
-    _showWallpaperLocationDialog();
+    if (ayarlar.odullureklamacikmi == "1") {
+      _showRewardedAdForWallpaper();
+    } else {
+      _showWallpaperLocationDialog();
+    }
+  }
+
+  // DÜZELTME 2: Wallpaper için ödüllü reklam düzeltmesi
+  void _showRewardedAdForWallpaper() {
+    if (Genel.reklam == null) {
+      _showWallpaperLocationDialog();
+      KategoriList.ReklamYukle(context);
+    } else {
+      Genel.reklam?.show(onUserEarnedReward: (ad, rewardItem) {
+        ad.dispose();
+        _showWallpaperLocationDialog();
+        KategoriList.ReklamYukle(context);
+      });
+    }
   }
 
   void _showWallpaperLocationDialog() {
@@ -1085,7 +1325,7 @@ class _SayfalarState extends State<Sayfalar>
                 subtitle: "Sadece kilit ekranında görünür",
                 onTap: () {
                   Navigator.of(context).pop();
-                  _performSetWallpaper(_imageList[_currentImageIndex], WallpaperManagerFlutter.lockScreen);
+                  _performSetWallpaper(_imageList[_currentImageIndex], WallpaperManagerPlus.lockScreen);
                 },
               ),
               const SizedBox(height: 8),
@@ -1095,7 +1335,7 @@ class _SayfalarState extends State<Sayfalar>
                 subtitle: "Sadece ana ekranda görünür",
                 onTap: () {
                   Navigator.of(context).pop();
-                  _performSetWallpaper(_imageList[_currentImageIndex], WallpaperManagerFlutter.homeScreen);
+                  _performSetWallpaper(_imageList[_currentImageIndex], WallpaperManagerPlus.homeScreen);
                 },
               ),
               const SizedBox(height: 8),
@@ -1105,7 +1345,7 @@ class _SayfalarState extends State<Sayfalar>
                 subtitle: "Hem kilit hem ana ekranda görünür",
                 onTap: () {
                   Navigator.of(context).pop();
-                  _performSetWallpaper(_imageList[_currentImageIndex], WallpaperManagerFlutter.bothScreens);
+                  _performSetWallpaper(_imageList[_currentImageIndex], WallpaperManagerPlus.bothScreens);
                 },
               ),
             ],
@@ -1195,23 +1435,44 @@ class _SayfalarState extends State<Sayfalar>
     );
   }
 
-// _performSetWallpaper metodunu da güncelleyin:
+  // DÜZELTME 3: Wallpaper işlemini stabil hale getiriyoruz - App kapanmasını önliyoruz
   Future<void> _performSetWallpaper(ImageList imageData, int wallpaperLocation) async {
+    if (_isWallpaperProcessing) return;
+
     try {
-      setState(() => _isProcessing = true);
+      setState(() {
+        _isWallpaperProcessing = true;
+        _isProcessing = true;
+      });
 
       final url = "${ayarlar.resimsunucusu}${imageData.yol}";
+
+      // Resmi önbelleğe al
       final file = await DefaultCacheManager().getSingleFile(url);
 
-      final result = await WallpaperManagerFlutter().setWallpaper(file, wallpaperLocation);
+      // Wallpaper ayarlama işlemi - try-catch ile korundu
+      String? result;
+      try {
+        result = await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
+      } catch (wallpaperError) {
+        print("Wallpaper error: $wallpaperError");
+        // Sistem wallpaper API'sinde sorun olursa alternatif yol dene
+        throw Exception("Wallpaper ayarlanamadı: ${wallpaperError.toString()}");
+      }
 
-      if (result) {
-        await Kullanici.IslemLog(
-          context,
-          Genel.CihazId,
-          "Duvar Kagidi Yapma",
-          imageData.id,
-        );
+      if (result == "Wallpaper set successfully" || result?.contains("success") == true) {
+        // Başarılı işlem kaydı
+        try {
+          await Kullanici.IslemLog(
+            context,
+            Genel.CihazId,
+            "Duvar Kagidi Yapma",
+            imageData.id,
+          );
+        } catch (logError) {
+          // Log hatası uygulamayı durdurmasın
+          print("Log error: $logError");
+        }
 
         String locationText = "";
         switch (wallpaperLocation) {
@@ -1226,58 +1487,55 @@ class _SayfalarState extends State<Sayfalar>
             break;
         }
 
-        _showSuccessAlert("Duvar kağıdı $locationText başarıyla ayarlandı!");
+        if (mounted) {
+          _showSuccessAlert("Duvar kağıdı $locationText başarıyla ayarlandı!");
+        }
       } else {
-        _showErrorAlert("Duvar kağıdı ayarlanamadı");
+        if (mounted) {
+          _showErrorAlert("Duvar kağıdı ayarlanamadı");
+        }
       }
     } catch (e) {
-      _showErrorAlert("Bir hata oluştu: ${e.toString()}");
+      print("Wallpaper set error: $e");
+      if (mounted) {
+        _showErrorAlert("Bir hata oluştu: ${e.toString()}");
+      }
     } finally {
-      setState(() => _isProcessing = false);
-    }
-  }
-
-// _setWallpaper metodunu da güncelleyin:
-  void _setWallpaper() {
-    if (_currentImageIndex < _imageList.length) {
-      final imageData = _imageList[_currentImageIndex];
-
-      if (ayarlar.odullureklamacikmi == "1") {
-        _showRewardedAdForAction(() => _showWallpaperLocationDialog());
-      } else {
-        _showWallpaperLocationDialog();
+      if (mounted) {
+        setState(() {
+          _isWallpaperProcessing = false;
+          _isProcessing = false;
+        });
       }
     }
   }
-  // Action methods
 
-
+  // DÜZELTME 4: Download için ödüllü reklam düzeltmesi
   void _downloadImage() {
     if (_currentImageIndex < _imageList.length) {
       final imageData = _imageList[_currentImageIndex];
 
       if (ayarlar.odullureklamacikmi == "1") {
-        _showRewardedAdForAction(() => _download(imageData));
+        _showRewardedAdForDownload(imageData);
       } else {
         _download(imageData);
       }
     }
   }
 
-
-
-  void _showRewardedAdForAction(VoidCallback action) {
+  void _showRewardedAdForDownload(ImageList imageData) {
     if (Genel.reklam == null) {
-      action();
+      _download(imageData);
       KategoriList.ReklamYukle(context);
     } else {
       Genel.reklam?.show(onUserEarnedReward: (ad, rewardItem) {
         ad.dispose();
-        action();
+        _download(imageData);
         KategoriList.ReklamYukle(context);
       });
     }
   }
+
   Future<void> _download(ImageList imageData) async {
     try {
       setState(() => _isProcessing = true);
@@ -1299,7 +1557,6 @@ class _SayfalarState extends State<Sayfalar>
         return;
       }
 
-
       // 3️⃣ Resmi kaydet
       final asset = await PhotoManager.editor.saveImage(
         imageBytes,
@@ -1309,7 +1566,11 @@ class _SayfalarState extends State<Sayfalar>
 
       if (asset != null) {
         // 4️⃣ İşlem log kaydı
-        await Kullanici.IslemLog(context, Genel.CihazId, "Download", imageData.id);
+        try {
+          await Kullanici.IslemLog(context, Genel.CihazId, "Download", imageData.id);
+        } catch (logError) {
+          print("Download log error: $logError");
+        }
         _showSuccessAlert("Resim başarıyla indirildi!");
       } else {
         _showErrorAlert("Resim indirilemedi");
@@ -1317,10 +1578,11 @@ class _SayfalarState extends State<Sayfalar>
     } catch (e) {
       _showErrorAlert("Bir hata oluştu: ${e.toString()}");
     } finally {
-      setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
-
 
   Future<void> _addToFavorites(int imageId) async {
     try {
@@ -1332,7 +1594,7 @@ class _SayfalarState extends State<Sayfalar>
         _loadFavoriteImages();
       }
     } catch (e) {
-      _showErrorAlert("Favorilere eklenemedi");
+      _showErrorAlert("İşlem tamamlanamadı");
     }
   }
 
@@ -1413,28 +1675,32 @@ class _SayfalarState extends State<Sayfalar>
         _setWallpaperWithConfirmation();
         break;
       case 'download':
-        _download(imageData);
+        _downloadImage();
         break;
     }
   }
 
   void _showSuccessAlert(String message) {
-    QuickAlert.show(
-      context: context,
-      type: QuickAlertType.success,
-      title: "Başarılı!",
-      text: message,
-      confirmBtnColor: Colors.teal,
-    );
+    if (mounted) {
+      QuickAlert.show(
+        context: context,
+        type: QuickAlertType.success,
+        title: "Başarılı!",
+        text: message,
+        confirmBtnColor: Colors.teal,
+      );
+    }
   }
 
   void _showErrorAlert(String message) {
-    QuickAlert.show(
-      context: context,
-      type: QuickAlertType.error,
-      title: "Hata!",
-      text: message,
-      confirmBtnColor: Colors.red,
-    );
+    if (mounted) {
+      QuickAlert.show(
+        context: context,
+        type: QuickAlertType.error,
+        title: "Hata!",
+        text: message,
+        confirmBtnColor: Colors.red,
+      );
+    }
   }
 }
