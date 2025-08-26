@@ -106,9 +106,9 @@ class _KategoriResimState extends State<KategoriResim>
 
   String _getBannerAdUnitId() {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/6300978111'; // Test ID
+      return ayarlar.bannerReklamId; // Test ID
     } else if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/2934735716'; // Test ID
+      return ayarlar.bannerReklamId; // Test ID
     } else {
       throw UnsupportedError('Unsupported platform');
     }

@@ -9,7 +9,7 @@ class ayarlar{
   static String bannerReklamId="";
   static String bannerReklamAcikMi="";
   static String telegramlink="";
-  static String groqapikey="";
+  static String aiapikey="";
 
   static void Ayarlari_Yukle(List<Ayarlar> list){
     if(list==null)
@@ -33,8 +33,8 @@ class ayarlar{
         bannerReklamId =item.deger;
       if (item.adi == "BANNER REKLAM ACIK MI")
         bannerReklamAcikMi =item.deger;
-      if (item.adi == "GROQ API KEY")
-        groqapikey =item.deger;
+      if (item.adi == "AI API KEY")
+        aiapikey =item.deger;
     }
 
   }

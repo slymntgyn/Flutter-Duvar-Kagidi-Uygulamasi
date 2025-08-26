@@ -36,14 +36,14 @@ import 'package:senseriduvarkagidi/ek/ayarlar.dart';
 import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
 
-class AIWallpaperGenerator extends StatefulWidget {
-  const AIWallpaperGenerator({super.key});
+class WallpaperGeneration extends StatefulWidget {
+  const WallpaperGeneration({super.key});
 
   @override
-  State<AIWallpaperGenerator> createState() => _AIWallpaperGeneratorState();
+  State<WallpaperGeneration> createState() => _WallpaperGenerationState();
 }
 
-class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
+class _WallpaperGenerationState extends State<WallpaperGeneration>
     with TickerProviderStateMixin {
 
   // Controllers
@@ -60,44 +60,43 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
   // State variables
   bool _isGenerating = false;
   bool _hasGeneratedImage = false;
-  String? _generatedImageUrl;
-  String? _currentTaskId; // Runway ML task tracking için
+  String? _generatedImageBase64;
   List<String> _generationHistory = [];
-  String _selectedStyle = 'Realistic';
-  String _selectedRatio = '9:16';
+  String _selectedStyle = 'Gerçekçi';
 
-  // Runway ML API Configuration
-  final String _runwayApiKey = "key_ecd421b6059b9433015e333ac667a6520656378162423260f6b2855a14f54a4f4a8b780f7da7e930da6c4e8f31915281db2dfa5f6eedae9f6478786607e934aa"; // Buraya Runway ML API key'inizi ekleyin
-  final String _runwayBaseUrl = 'https://api.dev.runwayml.com/v1';
+  // OpenRouter AI Configuration
+  final String _openRouterApiKey = ayarlar.aiapikey; // Buraya OpenRouter API key'inizi ekleyin
+  final String _openRouterBaseUrl = 'https://openrouter.ai/api/v1';
+  final String _geminiModel = 'google/gemini-2.5-flash-image-preview:free';
 
-  // Style options - Runway ML modelleri için güncellenmiş
+  // Style options - Türkçe stillerde
   final List<Map<String, dynamic>> _styleOptions = [
-    {'name': 'Realistic', 'icon': Icons.photo_camera, 'color': Colors.blue, 'model': 'gen3a_turbo'},
-    {'name': 'Anime', 'icon': Icons.animation, 'color': Colors.purple, 'model': 'gen3a_turbo'},
-    {'name': 'Abstract', 'icon': Icons.brush, 'color': Colors.orange, 'model': 'gen3a_turbo'},
-    {'name': 'Fantasy', 'icon': Icons.auto_awesome, 'color': Colors.pink, 'model': 'gen3a_turbo'},
-    {'name': 'Cyberpunk', 'icon': Icons.computer, 'color': Colors.cyan, 'model': 'gen3a_turbo'},
-    {'name': 'Nature', 'icon': Icons.nature, 'color': Colors.green, 'model': 'gen3a_turbo'},
+    {'name': 'Gerçekçi', 'icon': Icons.photo_camera, 'color': Colors.blue},
+    {'name': 'Anime', 'icon': Icons.animation, 'color': Colors.purple},
+    {'name': 'Soyut', 'icon': Icons.brush, 'color': Colors.orange},
+    {'name': 'Fantastik', 'icon': Icons.auto_awesome, 'color': Colors.pink},
+    {'name': 'Siberpunk', 'icon': Icons.computer, 'color': Colors.cyan},
+    {'name': 'Doğa', 'icon': Icons.nature, 'color': Colors.green},
   ];
 
-  // Aspect ratio options
-  final List<Map<String, String>> _ratioOptions = [
-    {'name': '9:16', 'label': 'Mobile', 'width': '768', 'height': '1344'},
-    {'name': '16:9', 'label': 'Desktop', 'width': '1344', 'height': '768'},
-    {'name': '1:1', 'label': 'Square', 'width': '1024', 'height': '1024'},
-    {'name': '4:5', 'label': 'Portrait', 'width': '1024', 'height': '1280'},
-  ];
-
-  // Prompt suggestions
+  // Türkçe prompt önerileri
   final List<String> _promptSuggestions = [
-    "Magnificent sunset over mountains",
-    "Futuristic city with neon lights",
-    "Peaceful forest with morning mist",
-    "Abstract geometric patterns",
-    "Ocean waves under starry night",
-    "Anime character in cherry blossom",
-    "Cyberpunk street with rain",
-    "Fantasy castle on floating island",
+    "Dağların üzerinde muhteşem gün batımı",
+    "Neon ışıklarla futuristik şehir manzarası",
+    "Sabah sisinin sarmaladığı huzurlu orman",
+    "Soyut geometrik desenler ve renkli şekiller",
+    "Yıldızlı gece altında okyanus dalgaları",
+    "Kiraz çiçekleri altında anime karakter",
+    "Yağmurlu siberpunk sokak sahnesi",
+    "Uçan ada üzerinde fantastik kale",
+    "Türk bayraklı dağ manzarası",
+    "İstanbul Boğaz köprüsü manzarası",
+    "Kapadokya balon turu manzarası",
+    "Pamukkale travertenleri ve havuzlar",
+    "Anadolu çayırlarında koyun sürüsü",
+    "Osmanlı saray bahçesi",
+    "Modern İstanbul skyline",
+    "Antik Türk motifli sanat",
   ];
 
   @override
@@ -152,9 +151,9 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
 
   String _getBannerAdUnitId() {
     if (Platform.isAndroid) {
-      return ayarlar.bannerReklamId; // Test ID
+      return ayarlar.bannerReklamId;
     } else if (Platform.isIOS) {
-      return ayarlar.bannerReklamId; // Test ID
+      return ayarlar.bannerReklamId;
     } else {
       throw UnsupportedError('Unsupported platform');
     }
@@ -169,53 +168,40 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
     super.dispose();
   }
 
-  // Runway ML API Methods
+  // OpenRouter AI API Methods
   Future<void> _generateWallpaper() async {
     if (_promptController.text.trim().isEmpty) return;
 
     setState(() {
       _isGenerating = true;
       _hasGeneratedImage = false;
-      _currentTaskId = null;
     });
 
     HapticFeedback.mediumImpact();
 
     try {
-      // Runway ML API ile görsel oluşturma
-      final taskId = await _startImageGeneration(_promptController.text.trim());
+      final generatedImageBase64 = await _generateImageWithOpenRouter(_promptController.text.trim());
 
-      if (taskId != null) {
+      if (generatedImageBase64 != null) {
         setState(() {
-          _currentTaskId = taskId;
+          _generatedImageBase64 = generatedImageBase64;
+          _hasGeneratedImage = true;
+          _generationHistory.insert(0, generatedImageBase64);
+          if (_generationHistory.length > 10) {
+            _generationHistory.removeLast();
+          }
         });
 
-        // Task durumunu kontrol et
-        final generatedImageUrl = await _pollTaskStatus(taskId);
+        _generateAnimationController.forward().then((_) {
+          _generateAnimationController.reset();
+        });
 
-        if (generatedImageUrl != null) {
-          setState(() {
-            _generatedImageUrl = generatedImageUrl;
-            _hasGeneratedImage = true;
-            _generationHistory.insert(0, generatedImageUrl);
-            if (_generationHistory.length > 10) {
-              _generationHistory.removeLast();
-            }
-          });
-
-          _generateAnimationController.forward().then((_) {
-            _generateAnimationController.reset();
-          });
-
-          // Başarılı oluşturma için vibration
-          if (await Vibration.hasVibrator() ?? false) {
-            Vibration.vibrate(duration: 200);
-          }
-
-          _showSuccessAlert('Duvar kağıdınız başarıyla oluşturuldu!');
-        } else {
-          _showErrorAlert('Görsel oluşturulamadı. Lütfen tekrar deneyin.');
+        // Başarılı oluşturma için vibration
+        if (await Vibration.hasVibrator() ?? false) {
+          Vibration.vibrate(duration: 200);
         }
+
+        _showSuccessAlert('Duvar kağıdınız başarıyla oluşturuldu!');
       } else {
         _showErrorAlert('Görsel oluşturulamadı. Lütfen tekrar deneyin.');
       }
@@ -225,162 +211,108 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
     } finally {
       setState(() {
         _isGenerating = false;
-        _currentTaskId = null;
       });
     }
   }
 
-  Future<String?> _startImageGeneration(String prompt) async {
+  Future<String?> _generateImageWithOpenRouter(String prompt) async {
     try {
       final enhancedPrompt = _enhancePrompt(prompt);
-      final selectedStyle = _styleOptions.firstWhere(
-            (style) => style['name'] == _selectedStyle,
-        orElse: () => _styleOptions.first,
-      );
 
-      final selectedRatio = _ratioOptions.firstWhere(
-            (ratio) => ratio['name'] == _selectedRatio,
-        orElse: () => _ratioOptions.first,
-      );
       final dio = Dio();
       final response = await dio.post(
-        '$_runwayBaseUrl/text_to_image',
+        '$_openRouterBaseUrl/chat/completions',
         options: Options(
           headers: {
-            'Authorization': 'Bearer $_runwayApiKey',
+            'Authorization': 'Bearer $_openRouterApiKey',
             'Content-Type': 'application/json',
           },
         ),
         data: {
-          'model': "gen4_image",
-          "ratio": "1920:1080",
-          'prompt': enhancedPrompt,
+          'model': _geminiModel,
+          'messages': [
+            {
+              'role': 'user',
+              'content': [
+                {
+                  'type': 'text',
+                  'text': enhancedPrompt,
+                }
+              ]
+            }
+          ],
         },
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final taskId = response.data['id'];
-        print('Started generation with task ID: $taskId');
-        return taskId;
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+
+        // Response'dan base64 resmini çıkar
+        if (responseData['choices'] != null &&
+            responseData['choices'].isNotEmpty &&
+            responseData['choices'][0]['message'] != null &&
+            responseData['choices'][0]['message']['images'] != null) {
+
+          final content = responseData['choices'][0]['message']['images'][0]['image_url']['url'];
+
+          // Base64 string'i bul ve çıkar
+          final base64Regex = RegExp(r'data:image\/[^;]+;base64,([A-Za-z0-9+/=]+)');
+          final match = base64Regex.firstMatch(content);
+
+          if (match != null) {
+            return match.group(1); // Base64 kısmını döndür
+          }
+
+          // Alternatif olarak, sadece base64 string varsa
+          final base64OnlyRegex = RegExp(r'^[A-Za-z0-9+/]+=*$');
+          if (base64OnlyRegex.hasMatch(content.trim())) {
+            return content.trim();
+          }
+        }
+
+        throw Exception('Response\'da geçerli base64 resim bulunamadı');
       } else {
         throw Exception('API request failed: ${response.statusCode}');
       }
     } catch (e) {
-      print('Runway ML API Error: $e');
+      print('OpenRouter AI API Error: $e');
       throw Exception('AI servisi ile bağlantı kurulamadı: $e');
     }
   }
 
-  Future<String?> _pollTaskStatus(String taskId) async {
-    const maxAttempts = 60; // 5 dakika maksimum bekleme (5 saniye aralıklarla)
-    const pollInterval = Duration(seconds: 5);
-
-    for (int attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        final dio = Dio();
-        final response = await dio.get(
-          '$_runwayBaseUrl/tasks/$taskId',
-          options: Options(
-            headers: {
-              'Authorization': 'Bearer $_runwayApiKey',
-              'Content-Type': 'application/json',
-            },
-          ),
-        );
-
-        if (response.statusCode == 200) {
-          final taskData = response.data;
-          final status = taskData['status'];
-
-          print('Task status: $status (attempt ${attempt + 1}/$maxAttempts)');
-
-          switch (status) {
-            case 'SUCCEEDED':
-              final outputUrls = taskData['output'] as List?;
-              if (outputUrls != null && outputUrls.isNotEmpty) {
-                return outputUrls.first as String;
-              }
-              break;
-
-            case 'FAILED':
-              final error = taskData['failure_reason'] ?? 'Unknown error';
-              throw Exception('Generation failed: $error');
-
-            case 'RUNNING':
-            case 'PENDING':
-            // Devam et
-              break;
-
-            default:
-              print('Unknown status: $status');
-              break;
-          }
-        }
-
-        // Bir sonraki kontrole kadar bekle
-        if (attempt < maxAttempts - 1) {
-          await Future.delayed(pollInterval);
-        }
-
-      } catch (e) {
-        print('Error polling task status: $e');
-        if (attempt == maxAttempts - 1) {
-          throw e;
-        }
-        await Future.delayed(pollInterval);
-      }
-    }
-
-    throw Exception('Generation timed out');
-  }
-
   String _enhancePrompt(String basePrompt) {
-    String enhanced = basePrompt;
-
+    String enhanced =
+        "Mobil cihazlar için yüksek kaliteli bir duvar kağıdı üret. "
+        "Yalnızca görsel çıktıyı tek mesajda ver, açıklama ekleme. "
+        "Çözünürlük: Genişlik=${Genel.genislik}, Yükseklik=${Genel.yukseklik}. "
+        "Tema: $basePrompt ";
     // Stil ekleme
     switch (_selectedStyle.toLowerCase()) {
-      case 'realistic':
-        enhanced += ', photorealistic, high quality, detailed, 8K resolution';
+      case 'gerçekçi':
+        enhanced += ', fotorealistik, yüksek kalite, detaylı, 8K çözünürlük';
         break;
       case 'anime':
-        enhanced += ', anime style, manga art, vibrant colors, cel-shaded';
+        enhanced += ', anime tarzı, manga sanatı, canlı renkler';
         break;
-      case 'abstract':
-        enhanced += ', abstract art, geometric shapes, modern design, artistic';
+      case 'soyut':
+        enhanced += ', soyut sanat, geometrik şekiller, modern tasarım';
         break;
-      case 'fantasy':
-        enhanced += ', fantasy art, magical, ethereal, mystical, enchanted';
+      case 'fantastik':
+        enhanced += ', fantastik sanat, büyülü, mistik, büyüleyici';
         break;
-      case 'cyberpunk':
-        enhanced += ', cyberpunk style, neon lights, futuristic, sci-fi, dark atmosphere';
+      case 'siberpunk':
+        enhanced += ', siberpunk tarzı, neon ışıklar, fütüristik, karanlık atmosfer';
         break;
-      case 'nature':
-        enhanced += ', natural landscape, organic, peaceful, serene, beautiful';
-        break;
-    }
-
-    // Oran bilgisi ekleme
-    switch (_selectedRatio) {
-      case '9:16':
-        enhanced += ', mobile wallpaper format, vertical composition';
-        break;
-      case '16:9':
-        enhanced += ', desktop wallpaper format, horizontal composition';
-        break;
-      case '1:1':
-        enhanced += ', square format, centered composition';
-        break;
-      case '4:5':
-        enhanced += ', portrait format, vertical composition';
+      case 'doğa':
+        enhanced += ', doğal manzara, organik, huzurlu, sakin, güzel';
         break;
     }
 
-    enhanced += ', masterpiece, best quality, ultra detailed, sharp focus';
+    enhanced += ', başyapıt, en iyi kalite, ultra detaylı, keskin odak, duvar kağıdı formatında';
 
     return enhanced;
   }
 
-  // Geri kalan widget build metodları aynı kalacak...
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -409,8 +341,6 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
                     _buildPromptInputSection(),
                     const SizedBox(height: 20),
                     _buildStyleSelection(),
-                    const SizedBox(height: 20),
-                    _buildRatioSelection(),
                     const SizedBox(height: 20),
                     _buildGenerateButton(),
                     const SizedBox(height: 20),
@@ -478,7 +408,7 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
           ),
           const SizedBox(width: 12),
           Text(
-            'Runway AI Duvar Kağıdı',
+            'AI Duvar Kağıdı Oluştur',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -532,7 +462,7 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Runway AI ile Oluştur',
+                      'Gemini AI ile Oluştur',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -541,7 +471,7 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Profesyonel kalitede duvar kağıdını Runway ML ile oluşturun',
+                      'Telefonunuza hayalinizdeki duvar kağıdınızı oluşturun',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 14,
@@ -583,7 +513,7 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
               ),
               const SizedBox(width: 8),
               Text(
-                'Açıklama Yazın',
+                'Ne İstiyorsunuz?',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -711,95 +641,6 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
     );
   }
 
-  Widget _buildRatioSelection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.aspect_ratio_rounded,
-                color: Colors.teal,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Boyut Oranı',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: _ratioOptions.map((ratio) => Expanded(
-              child: _buildRatioChip(ratio),
-            )).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRatioChip(Map<String, String> ratio) {
-    final isSelected = _selectedRatio == ratio['name'];
-
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() {
-          _selectedRatio = ratio['name']!;
-        });
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.teal.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? Colors.teal : Theme.of(context).dividerColor,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            Text(
-              ratio['name']!,
-              style: TextStyle(
-                color: isSelected ? Colors.teal : Theme.of(context).textTheme.bodyMedium?.color,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              ratio['label']!,
-              style: TextStyle(
-                color: isSelected ? Colors.teal.withOpacity(0.7) : Theme.of(context).textTheme.bodySmall?.color,
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildGenerateButton() {
     final canGenerate = _promptController.text.trim().isNotEmpty && !_isGenerating;
 
@@ -841,9 +682,9 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  _currentTaskId != null ? 'İşleniyor...' : 'Başlatılıyor...',
-                  style: const TextStyle(
+                const Text(
+                  'AI Oluşturuyor...',
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -906,36 +747,18 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
               ),
               const SizedBox(width: 8),
               Text(
-                _isGenerating ? 'Runway AI ile Oluşturuluyor...' : 'Sonuç',
+                _isGenerating ? 'Gemini AI ile Oluşturuluyor...' : 'Sonuç',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (_currentTaskId != null) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'ID: ${_currentTaskId!.substring(0, 8)}...',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
           const SizedBox(height: 16),
 
           if (_isGenerating)
             _buildGeneratingPlaceholder()
-          else if (_hasGeneratedImage && _generatedImageUrl != null)
+          else if (_hasGeneratedImage && _generatedImageBase64 != null)
             _buildGeneratedImage(),
         ],
       ),
@@ -990,23 +813,21 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Runway AI duvar kağıdınızı oluşturuyor...',
+                  'Gemini AI duvar kağıdınızı oluşturuyor...',
                   style: TextStyle(
                     color: Colors.grey,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                if (_currentTaskId != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Bu işlem birkaç dakika sürebilir',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
+                const SizedBox(height: 8),
+                Text(
+                  'Bu işlem birkaç saniye sürebilir',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -1020,32 +841,26 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: CachedNetworkImage(
-            imageUrl: _generatedImageUrl!,
+          child: Image.memory(
+            base64Decode(_generatedImageBase64!),
             width: double.infinity,
             height: 300,
             fit: BoxFit.cover,
-            placeholder: (context, url) => Container(
-              width: double.infinity,
-              height: 300,
-              color: Colors.grey[100],
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
-            errorWidget: (context, url, error) => Container(
-              width: double.infinity,
-              height: 300,
-              color: Colors.grey[100],
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: Colors.grey),
-                  SizedBox(height: 8),
-                  Text('Resim yüklenemedi', style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: double.infinity,
+                height: 300,
+                color: Colors.grey[100],
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text('Resim yüklenemedi', style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 16),
@@ -1216,7 +1031,7 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
               ),
               const SizedBox(width: 8),
               Text(
-                'Son Runway Üretimleri',
+                'Son AI Üretimleri',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -1230,21 +1045,23 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
               scrollDirection: Axis.horizontal,
               itemCount: _generationHistory.length,
               itemBuilder: (context, index) {
-                final imageUrl = _generationHistory[index];
+                final imageBase64 = _generationHistory[index];
                 return Container(
                   width: 80,
                   margin: const EdgeInsets.only(right: 8),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: CachedNetworkImage(
-                      imageUrl: imageUrl,
+                    child: Image.memory(
+                      base64Decode(imageBase64),
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey[100],
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[100],
+                          child: const Center(
+                            child: Icon(Icons.error_outline, color: Colors.grey),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 );
@@ -1258,7 +1075,7 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
 
   // Action Methods
   Future<void> _setGeneratedWallpaper() async {
-    if (_generatedImageUrl == null) return;
+    if (_generatedImageBase64 == null) return;
     _showWallpaperLocationDialog();
   }
 
@@ -1286,7 +1103,7 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
               ),
               const SizedBox(width: 12),
               Text(
-                "Runway AI Duvar Kağıdı",
+                "AI Duvar Kağıdı",
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -1298,7 +1115,7 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Runway AI ile oluşturulan duvar kağıdını nereye uygulamak istiyorsunuz?",
+                "Gemini AI ile oluşturulan duvar kağıdını nereye uygulamak istiyorsunuz?",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
                 ),
@@ -1421,12 +1238,17 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
   }
 
   Future<void> _performSetWallpaper(int wallpaperLocation) async {
-    if (_generatedImageUrl == null) return;
+    if (_generatedImageBase64 == null) return;
 
     try {
       setState(() => _isGenerating = true);
 
-      final file = await DefaultCacheManager().getSingleFile(_generatedImageUrl!);
+      // Base64'ü geçici dosyaya kaydet
+      final bytes = base64Decode(_generatedImageBase64!);
+      final tempDir = Directory.systemTemp;
+      final file = File('${tempDir.path}/ai_wallpaper_${DateTime.now().millisecondsSinceEpoch}.png');
+      await file.writeAsBytes(bytes);
+
       var result = await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
 
       if (result!.isEmpty) {
@@ -1434,7 +1256,7 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
         await Kullanici.IslemLog(
             context,
             Genel.CihazId,
-            "Runway AI Duvar Kagidi Yapma",
+            "AI Duvar Kagidi Yapma",
             0
         );
 
@@ -1451,7 +1273,12 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
             break;
         }
 
-        _showSuccessAlert("Runway AI duvar kağıdı $locationText başarıyla ayarlandı!");
+        _showSuccessAlert("AI duvar kağıdı $locationText başarıyla ayarlandı!");
+
+        // Geçici dosyayı sil
+        if (await file.exists()) {
+          await file.delete();
+        }
       } else {
         _showErrorAlert("Duvar kağıdı ayarlanamadı");
       }
@@ -1463,18 +1290,13 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
   }
 
   Future<void> _downloadGeneratedImage() async {
-    if (_generatedImageUrl == null) return;
+    if (_generatedImageBase64 == null) return;
 
     try {
       setState(() => _isGenerating = true);
 
       final DateTime now = DateTime.now();
-      final response = await Dio().get(
-        _generatedImageUrl!,
-        options: Options(responseType: ResponseType.bytes),
-      );
-
-      final Uint8List imageBytes = Uint8List.fromList(response.data);
+      final Uint8List imageBytes = base64Decode(_generatedImageBase64!);
 
       final PermissionState ps = await PhotoManager.requestPermissionExtend();
       if (!ps.isAuth && ps != PermissionState.limited) {
@@ -1484,18 +1306,18 @@ class _AIWallpaperGeneratorState extends State<AIWallpaperGenerator>
 
       final asset = await PhotoManager.editor.saveImage(
         imageBytes,
-        filename: "runway_ai_wallpaper_${now.millisecondsSinceEpoch}",
-        title: "runway_ai_wallpaper_${now.millisecondsSinceEpoch}",
+        filename: "ai_wallpaper_${now.millisecondsSinceEpoch}",
+        title: "ai_wallpaper_${now.millisecondsSinceEpoch}",
       );
 
       if (asset != null) {
         await Kullanici.IslemLog(
             context,
             Genel.CihazId,
-            "Runway AI Download",
+            "AI Download",
             0
         );
-        _showSuccessAlert("Runway AI duvar kağıdı başarıyla indirildi!");
+        _showSuccessAlert("AI duvar kağıdı başarıyla indirildi!");
       } else {
         _showErrorAlert("Resim indirilemedi");
       }

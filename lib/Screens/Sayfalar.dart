@@ -541,7 +541,7 @@ class _SayfalarState extends State<Sayfalar>
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-        const AIWallpaperGenerator(),
+        const WallpaperGeneration(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(0.0, 1.0);
           const end = Offset.zero;
