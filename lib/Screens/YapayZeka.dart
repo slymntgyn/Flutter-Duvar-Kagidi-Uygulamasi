@@ -24,6 +24,7 @@ import 'package:provider/provider.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vibration/vibration.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Local imports - Bu import'ları kendi projenizde güncelleyin
 import 'package:senseriduvarkagidi/model/Ayarlar.dart';
@@ -64,10 +65,15 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
   List<String> _generationHistory = [];
   String _selectedStyle = 'Gerçekçi';
 
+  // Daily limit tracking
+  int _dailyWallpaperCount = 0;
+  String _lastWallpaperDate = '';
+  static late int DAILY_WALLPAPER_LIMIT = int.parse(ayarlar.aiDuvarKagidiUretmeLimit);
+
   // OpenRouter AI Configuration
   final String _openRouterApiKey = ayarlar.aiapikey; // Buraya OpenRouter API key'inizi ekleyin
   final String _openRouterBaseUrl = 'https://openrouter.ai/api/v1';
-  final String _geminiModel = 'google/gemini-2.5-flash-image-preview:free';
+  final String _Model = ayarlar.aiDuvarKagidiUretmeModel;
 
   // Style options - Türkçe stillerde
   final List<Map<String, dynamic>> _styleOptions = [
@@ -104,6 +110,7 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
     super.initState();
     _initializeControllers();
     _initializeBannerAd();
+    _loadDailyLimitData();
   }
 
   void _initializeControllers() {
@@ -157,6 +164,47 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
     } else {
       throw UnsupportedError('Unsupported platform');
     }
+  }
+
+  // Daily limit methods
+  Future<void> _loadDailyLimitData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().split('T')[0];
+
+    _lastWallpaperDate = prefs.getString('last_wallpaper_date') ?? '';
+
+    if (_lastWallpaperDate == today) {
+      _dailyWallpaperCount = prefs.getInt('daily_wallpaper_count') ?? 0;
+    } else {
+      // Yeni gün, sayacı sıfırla
+      _dailyWallpaperCount = 0;
+      _lastWallpaperDate = today;
+      await prefs.setString('last_wallpaper_date', today);
+      await prefs.setInt('daily_wallpaper_count', 0);
+    }
+
+    setState(() {});
+  }
+
+  Future<void> _incrementDailyWallpaperCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().split('T')[0];
+
+    _dailyWallpaperCount++;
+    _lastWallpaperDate = today;
+    print("_dailyWallpaperCount"+_dailyWallpaperCount.toString());
+    await prefs.setString('last_wallpaper_date', today);
+    await prefs.setInt('daily_wallpaper_count', _dailyWallpaperCount);
+
+    setState(() {});
+  }
+
+  bool _canSetWallpaper() {
+    return _dailyWallpaperCount < DAILY_WALLPAPER_LIMIT;
+  }
+
+  int _getRemainingWallpaperCount() {
+    return DAILY_WALLPAPER_LIMIT - _dailyWallpaperCount;
   }
 
   @override
@@ -229,7 +277,7 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
           },
         ),
         data: {
-          'model': _geminiModel,
+          'model': _Model,
           'messages': [
             {
               'role': 'user',
@@ -246,29 +294,49 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
 
       if (response.statusCode == 200) {
         final responseData = response.data;
-
+        await _incrementDailyWallpaperCount();
         // Response'dan base64 resmini çıkar
         if (responseData['choices'] != null &&
             responseData['choices'].isNotEmpty &&
-            responseData['choices'][0]['message'] != null &&
-            responseData['choices'][0]['message']['images'] != null) {
+            responseData['choices'][0]['message'] != null) {
 
-          final content = responseData['choices'][0]['message']['images'][0]['image_url']['url'];
+          final message = responseData['choices'][0]['message'];
+          final content = message['content'];
 
-          // Base64 string'i bul ve çıkar
-          final base64Regex = RegExp(r'data:image\/[^;]+;base64,([A-Za-z0-9+/=]+)');
-          final match = base64Regex.firstMatch(content);
+          String? base64String;
 
-          if (match != null) {
-            return match.group(1); // Base64 kısmını döndür
+          if (content is String) {
+            // content doğrudan base64 ya da data:image/... olabilir
+            base64String = content;
+          } else if (content is List) {
+            // content bir listeyse, image_url objesini ara
+            for (var item in content) {
+              if (item is Map &&
+                  item['type'] == 'image_url' &&
+                  item['image_url']?['url'] != null) {
+                base64String = item['image_url']['url'];
+                break;
+              }
+            }
           }
 
-          // Alternatif olarak, sadece base64 string varsa
-          final base64OnlyRegex = RegExp(r'^[A-Za-z0-9+/]+=*$');
-          if (base64OnlyRegex.hasMatch(content.trim())) {
-            return content.trim();
+          if (base64String != null) {
+            final base64Regex = RegExp(r'data:image\/[^;]+;base64,([A-Za-z0-9+/=]+)');
+            final match = base64Regex.firstMatch(base64String);
+
+            if (match != null) {
+              return match.group(1); // Base64 kısmını döndür
+            }
+
+            // Eğer zaten sadece base64 string ise
+            final base64OnlyRegex = RegExp(r'^[A-Za-z0-9+/]+=*$');
+            if (base64OnlyRegex.hasMatch(base64String.trim())) {
+              return base64String.trim();
+            }
           }
         }
+
+
 
         throw Exception('Response\'da geçerli base64 resim bulunamadı');
       } else {
@@ -284,7 +352,7 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
     String enhanced =
         "Mobil cihazlar için yüksek kaliteli bir duvar kağıdı üret. "
         "Yalnızca görsel çıktıyı tek mesajda ver, açıklama ekleme. "
-        "Çözünürlük: Genişlik=${Genel.genislik}, Yükseklik=${Genel.yukseklik}. "
+        "Ölçüler: Genişlik=${Genel.genislik}, Yükseklik=${Genel.yukseklik}. "
         "Tema: $basePrompt ";
     // Stil ekleme
     switch (_selectedStyle.toLowerCase()) {
@@ -308,7 +376,7 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
         break;
     }
 
-    enhanced += ', başyapıt, en iyi kalite, ultra detaylı, keskin odak, duvar kağıdı formatında';
+    enhanced += ', başyapıt, en iyi kalite, ultra detaylı, keskin odak, duvar kağıdı formatında. Sadece base 64 formatında veri dön. Konuşma yapma';
 
     return enhanced;
   }
@@ -337,6 +405,8 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildHeaderCard(),
+                    const SizedBox(height: 20),
+                    _buildDailyLimitCard(),
                     const SizedBox(height: 20),
                     _buildPromptInputSection(),
                     const SizedBox(height: 20),
@@ -418,6 +488,87 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
     );
   }
 
+  Widget _buildDailyLimitCard() {
+    final remainingCount = _getRemainingWallpaperCount();
+    final isLimitReached = !_canSetWallpaper();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: isLimitReached
+            ? LinearGradient(
+          colors: [Colors.red.withOpacity(0.1), Colors.red.withOpacity(0.05)],
+        )
+            : LinearGradient(
+          colors: [Colors.green.withOpacity(0.1), Colors.green.withOpacity(0.05)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isLimitReached ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isLimitReached
+                  ? Colors.red.withOpacity(0.1)
+                  : Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isLimitReached ? Icons.block : Icons.wallpaper,
+              color: isLimitReached ? Colors.red : Colors.green,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Günlük Duvar Kağıdı Hakkı',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isLimitReached ? Colors.red : Colors.green,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isLimitReached
+                      ? 'Günlük limitiniz doldu. Yarın tekrar deneyin.'
+                      : 'Bugün $remainingCount yapay zekaya duvar kağıdı ürettirme hakkınız kaldı.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isLimitReached
+                  ? Colors.red.withOpacity(0.1)
+                  : Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '$remainingCount/$DAILY_WALLPAPER_LIMIT',
+              style: TextStyle(
+                color: isLimitReached ? Colors.red : Colors.green,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeaderCard() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -462,7 +613,7 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Gemini AI ile Oluştur',
+                      'AI ile Oluştur',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -747,7 +898,7 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
               ),
               const SizedBox(width: 8),
               Text(
-                _isGenerating ? 'Gemini AI ile Oluşturuluyor...' : 'Sonuç',
+                _isGenerating ? 'AI ile Oluşturuluyor...' : 'Sonuç',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -813,7 +964,7 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Gemini AI duvar kağıdınızı oluşturuyor...',
+                  'AI duvar kağıdınızı oluşturuyor...',
                   style: TextStyle(
                     color: Colors.grey,
                     fontSize: 14,
@@ -871,7 +1022,8 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
                 icon: Icons.wallpaper_rounded,
                 label: 'Duvar Kağıdı Yap',
                 color: Colors.blue,
-                onPressed: () => _setGeneratedWallpaper(),
+                onPressed: _canSetWallpaper() ? () => _setGeneratedWallpaper() : null,
+                isDisabled: !_canSetWallpaper(),
               ),
             ),
             const SizedBox(width: 12),
@@ -885,6 +1037,32 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
             ),
           ],
         ),
+        if (!_canSetWallpaper())
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.red, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Günlük duvar kağıdı ayarlama limitiniz doldu. Yarın tekrar deneyin.',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -893,32 +1071,35 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
     required IconData icon,
     required String label,
     required Color color,
-    required VoidCallback onPressed,
+    VoidCallback? onPressed,
+    bool isDisabled = false,
   }) {
+    final effectiveColor = isDisabled ? Colors.grey : color;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
+        onTap: onPressed != null && !isDisabled ? () {
           HapticFeedback.lightImpact();
           onPressed();
-        },
+        } : null,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: effectiveColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.3)),
+            border: Border.all(color: effectiveColor.withOpacity(0.3)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: 18),
+              Icon(icon, color: effectiveColor, size: 18),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: color,
+                  color: effectiveColor,
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                 ),
@@ -1076,6 +1257,10 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
   // Action Methods
   Future<void> _setGeneratedWallpaper() async {
     if (_generatedImageBase64 == null) return;
+    if (!_canSetWallpaper()) {
+      _showErrorAlert('Günlük duvar kağıdı üretme limitiniz doldu. Yarın tekrar deneyin.');
+      return;
+    }
     _showWallpaperLocationDialog();
   }
 
@@ -1115,9 +1300,34 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Gemini AI ile oluşturulan duvar kağıdını nereye uygulamak istiyorsunuz?",
+                "AI ile oluşturulan duvar kağıdını nereye uygulamak istiyorsunuz?",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Kalan hakkınız: ${_getRemainingWallpaperCount()}/$DAILY_WALLPAPER_LIMIT',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -1239,6 +1449,10 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
 
   Future<void> _performSetWallpaper(int wallpaperLocation) async {
     if (_generatedImageBase64 == null) return;
+    if (!_canSetWallpaper()) {
+      _showErrorAlert('Günlük duvar kağıdı üretme limitiniz doldu.');
+      return;
+    }
 
     try {
       setState(() => _isGenerating = true);
@@ -1252,6 +1466,9 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
       var result = await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
 
       if (result!.isEmpty) {
+        // Günlük sayacı artır
+
+
         // Log kaydı
         await Kullanici.IslemLog(
             context,
@@ -1273,7 +1490,7 @@ class _WallpaperGenerationState extends State<WallpaperGeneration>
             break;
         }
 
-        _showSuccessAlert("AI duvar kağıdı $locationText başarıyla ayarlandı!");
+        _showSuccessAlert("AI duvar kağıdı $locationText başarıyla ayarlandı!\n\nKalan hakkınız: ${_getRemainingWallpaperCount()}/$DAILY_WALLPAPER_LIMIT");
 
         // Geçici dosyayı sil
         if (await file.exists()) {

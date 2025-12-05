@@ -10,6 +10,8 @@ class ayarlar{
   static String bannerReklamAcikMi="";
   static String telegramlink="";
   static String aiapikey="";
+  static String aiDuvarKagidiUretmeLimit="";
+  static String aiDuvarKagidiUretmeModel="";
 
   static void Ayarlari_Yukle(List<Ayarlar> list){
     if(list==null)
@@ -35,6 +37,10 @@ class ayarlar{
         bannerReklamAcikMi =item.deger;
       if (item.adi == "AI API KEY")
         aiapikey =item.deger;
+      if (item.adi == "AI DUVAR KAĞIGI URETME LIMIT")
+        aiDuvarKagidiUretmeLimit =item.deger;
+      if (item.adi == "AI DUVAR KAĞIGI URETME MODEL")
+        aiDuvarKagidiUretmeModel =item.deger;
     }
 
   }
