@@ -61,12 +61,19 @@ dependencies:
   vibration: ^2.0.0 # Vibrasyon için
   google_fonts: ^6.2.1 # Google Fonts için
   shared_preferences: ^2.3.2 # Paylaşılan tercihler için
-  provider: ^6.1.2 # Durum yönetimi için
+  provider: ^6.1.2 # Durum yönetimi için (legacy, migration sonrası kaldırılacak)
+  flutter_riverpod: ^2.5.1 # Yeni durum yönetimi
   google_mobile_ads: ^5.1.0 # Google Mobil Reklamlar için
   crypto: ^3.0.5 # Şifreleme için
+  path_provider: ^2.1.4 # Dosya sistemi yolları için
+  json_annotation: ^4.9.0 # JSON serialization annotations
+  share_plus: ^10.1.4 # Paylaşım için
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  json_serializable: ^6.8.0 # JSON serialization code gen
+  build_runner: ^2.4.12 # Code generation runner
+  mocktail: ^1.0.4 # Test mocking
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
