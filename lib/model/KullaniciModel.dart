@@ -12,11 +12,8 @@ class Kullanici{
   String favorI_RESIMLER="";
 
   Kullanici.fromJson(Map<String, dynamic> json) {
-    yetkiler = json['yetkiler'] ;
-    favorI_RESIMLER = json['favorI_RESIMLER'] ;
-
-    yetkiler=(yetkiler==null?"":yetkiler);
-    favorI_RESIMLER=(favorI_RESIMLER==null?"":favorI_RESIMLER);
+    yetkiler = json['yetkiler'] as String? ?? '';
+    favorI_RESIMLER = json['favorI_RESIMLER'] as String? ?? '';
   }
 
   static Future<Kullanici?> Kullanici_Getir(BuildContext context) async {
@@ -26,9 +23,9 @@ class Kullanici{
       print(Genel.CihazId);
       Genel.CihazId=Genel.CihazId.replaceAll('/', '');
       Genel.CihazId=Genel.CihazId.replaceAll('<', '');
-      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "DuvarKagidi/kullaniciGetir/"+ Genel.CihazId.replaceAll('/', '')!);
+      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "kullanici/${Genel.CihazId.replaceAll('/', '')}");
       if (result.hata){
-        print('>>>> result.hata'+result.hata.toString());
+        print('>>>> result.hata${result.hata}');
         Yardimci.AlertDialogError(context, "Hata Oluştu","Lütfen daha sonra tekrar deneyiniz");
       }
 
@@ -46,7 +43,7 @@ class Kullanici{
       }
     }
     catch (error) {
-      print("Hata"+ error.toString());
+      print("Hata$error");
       Yardimci.AlertDialogError(
           context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyiniz");
     }
@@ -55,13 +52,13 @@ class Kullanici{
   static Future<String?> IslemLog(BuildContext context,String CihazId,String Islem,int Resim) async {
     try {
 
-      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "DuvarKagidi/IslemLog/"+Genel.CihazId+"/"+Islem.toString()+"/"+Resim.toString());
+      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "kullanici/${Genel.CihazId}/islem/$Islem/$Resim");
 
       print(result);
 
-      if (result.hata)
+      if (result.hata) {
         return "Hata ";
-      else {
+      } else {
 
         return result.sonuc.toString();
       }

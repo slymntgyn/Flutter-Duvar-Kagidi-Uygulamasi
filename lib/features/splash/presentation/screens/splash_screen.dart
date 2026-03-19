@@ -17,7 +17,7 @@ import 'package:senseriduvarkagidi/model/Ayarlar.dart';
 import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
-import 'package:senseriduvarkagidi/Screens/Sayfalar.dart';
+import 'package:senseriduvarkagidi/features/home/presentation/screens/home_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -146,6 +146,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // -- Old server-side settings --------------------------------------------
     _updateProgress(0.3, 'Sunucu ayarlari aliniyor...');
+    if (!mounted) return;
 
     List<Ayarlar>? list = await Ayarlar.Ayarlari_Getir(context);
     if (list != null) {
@@ -170,22 +171,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // Also load user info through old path
     _updateProgress(0.6, 'Kullanici bilgileri yukleniyor...');
+    if (!mounted) return;
     await Kullanici.Kullanici_Getir(context);
   }
 
   /// Step 4 -- Load wallpapers (old path for now)
   Future<void> _stepLoadWallpapers() async {
     _updateProgress(0.7, 'Resimler yukleniyor...');
+    if (!mounted) return;
     await ImageList.GetResimler(context);
   }
 
   /// Step 5 -- Load categories (old path for now)
   Future<void> _stepLoadCategories() async {
     _updateProgress(0.9, 'Kategoriler yukleniyor...');
+    if (!mounted) return;
     await KategoriList.GetKategoriler(context);
 
     // Prepare ads
     _updateProgress(0.95, 'Reklamlar hazirlaniyor...');
+    if (!mounted) return;
     KategoriList.ReklamYukle(context);
   }
 
@@ -198,7 +203,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => Sayfalar()),
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
     );
   }
 

@@ -2,7 +2,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
 import 'package:senseriduvarkagidi/ek/restful.dart';
 import 'package:senseriduvarkagidi/ek/result.dart';
@@ -15,14 +14,9 @@ class KategoriList{
   String kategorI_RESMI="";
 
   KategoriList.fromJson(Map<String, dynamic> json) {
-    id=json['id'] as int;
-    kategori=json['kategori'] as String;
-    kategorI_RESMI=json['kategorI_RESMI'] as String;
-
-
-    id=id==null?0:id;
-    kategori=kategori==null?"":kategori;
-    kategorI_RESMI=kategorI_RESMI==null?"":kategorI_RESMI;
+    id = json['id'] as int? ?? 0;
+    kategori = json['kategori'] as String? ?? '';
+    kategorI_RESMI = json['kategorI_RESMI'] as String? ?? '';
   }
 
   static Future<List<KategoriList>?> GetKategoriler(BuildContext context) async {
@@ -31,23 +25,23 @@ class KategoriList{
 
 
 
-      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "DuvarKagidi/GetKategoriler");
+      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "kategori");
 
 
-      if (result.hata)
+      if (result.hata) {
         Yardimci.AlertDialogError(context, "Hata Oluştu", "Lütfen daha sonra tekrar deneyin");
-      else {
+      } else {
         if(result.sonuc!="") {
           var jsonlist = jsonDecode(result.sonuc.toString()) as List;
-          List<KategoriList> list = new List<KategoriList>.empty(growable: true);
-          jsonlist.forEach((e) {
+          List<KategoriList> list = List<KategoriList>.empty(growable: true);
+          for (var e in jsonlist) {
             list.add(KategoriList.fromJson(e));
 
-          });
-          Genel.Kategoriler=list as List<KategoriList>;
+          }
+          Genel.Kategoriler=list;
 
 
-          print("object"+Genel.Resimler.toString());
+          print("object${Genel.Resimler}");
 
 
           return list;
@@ -59,6 +53,7 @@ class KategoriList{
           context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyiniz");
       return null;
     }
+    return null;
   }
   static Future<void> ReklamYukle(BuildContext context) async {
     RewardedAd.load(

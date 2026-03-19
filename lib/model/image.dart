@@ -2,7 +2,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
 import 'package:senseriduvarkagidi/ek/restful.dart';
 import 'package:senseriduvarkagidi/ek/result.dart';
@@ -13,41 +12,39 @@ class ImageList{
   int id=0;
   String yol="";
   String kategori="";
+  bool isPro=false;
 
   ImageList.fromJson(Map<String, dynamic> json) {
-    id=json['id'] as int;
-    yol=json['yol'] as String;
-    kategori=json['kategori'] as String;
-
-
-    id=id==null?0:id;
-    yol=yol==null?"":yol;
-    kategori=kategori==null?"":kategori;
+    id = json['id'] as int? ?? 0;
+    // API 'yol' = dizin URL, 'resiM_ADI' = dosya adi. Ikisini birlestir.
+    yol = json['resiM_ADI'] as String? ?? '';
+    kategori = json['kategori'] as String? ?? '';
+    isPro = json['iS_PRO'] as bool? ?? false;
   }
 
-  ImageList(this.id, this.yol,this.kategori);
+  ImageList(this.id, this.yol, this.kategori, {this.isPro = false});
   static Future<List<ImageList>?> GetResimler(BuildContext context) async {
     try {
 
 
 
-      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "DuvarKagidi/ResimGetir");
+      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "resim");
 
 
-      if (result.hata)
+      if (result.hata) {
         Yardimci.AlertDialogError(context, "Hata Oluştu", "Lütfen daha sonra tekrar deneyins");
-      else {
+      } else {
         if(result.sonuc!="") {
           var jsonlist = jsonDecode(result.sonuc.toString()) as List;
-          List<ImageList> list = new List<ImageList>.empty(growable: true);
-          jsonlist.forEach((e) {
+          List<ImageList> list = List<ImageList>.empty(growable: true);
+          for (var e in jsonlist) {
             list.add(ImageList.fromJson(e));
 
-          });
-          Genel.Resimler=list as List<ImageList>;
+          }
+          Genel.Resimler=list;
 
 
-          print("object"+Genel.Resimler.toString());
+          print("object${Genel.Resimler}");
 
 
           return list;
@@ -59,17 +56,18 @@ class ImageList{
           context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyiniz");
       return null;
     }
+    return null;
   }
   static Future<String?> FavorilereEkle(BuildContext context,int ResimId) async {
     try {
 
-      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "DuvarKagidi/FavorilerEkle/"+Genel.CihazId+"/"+ResimId.toString());
+      Result_Get result = await Restful.Post_Request(Genel.web_api_link,context, "kullanici/${Genel.CihazId}/favori/$ResimId", "");
 
       print(result);
 
-      if (result.hata)
-        return "Hata : "+result.hataMesaji.toString();
-      else {
+      if (result.hata) {
+        return "Hata : ${result.hataMesaji}";
+      } else {
 
         return result.sonuc.toString();
       }

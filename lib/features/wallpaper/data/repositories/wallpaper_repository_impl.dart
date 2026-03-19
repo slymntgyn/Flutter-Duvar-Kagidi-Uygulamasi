@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -81,7 +80,7 @@ class WallpaperRepositoryImpl implements WallpaperRepository {
         title: 'wallpaper_${now.millisecondsSinceEpoch}',
       );
 
-      if (asset != null) {
+      if (asset.id.isNotEmpty) {
         return const Success(null);
       }
       return const Error(ServerFailure('Resim kaydedilemedi'));

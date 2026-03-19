@@ -4,11 +4,13 @@ class WallpaperImage {
   final int id;
   final String path;
   final List<int> categoryIds;
+  final bool isPro;
 
   const WallpaperImage({
     required this.id,
     required this.path,
     required this.categoryIds,
+    this.isPro = false,
   });
 
   @override

@@ -5,9 +5,9 @@ class ShowUpAnimation extends StatefulWidget {
   /// GETTING THE CHILD WIDGET
   final Widget child;
   /// GETTING THE ANIMATION DURATION
-  int? delay;
+  final int? delay;
 
-  ShowUpAnimation({required this.child,  this.delay});
+  const ShowUpAnimation({super.key, required this.child, this.delay});
 
   @override
   _ShowUpAnimationState createState() => _ShowUpAnimationState();
@@ -19,14 +19,14 @@ class _ShowUpAnimationState extends State<ShowUpAnimation> with TickerProviderSt
   /// CREATING THE ANIMATION  VARIABLE OF TYPE OFFSET
   late Animation<Offset> _animOffset;
   /// CREATING THE TIMER VARIABLE
-  late Timer _timer;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
 
     _animController =
-        AnimationController(vsync: this, duration: Duration(milliseconds: 500));
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     final curve =
     CurvedAnimation(curve: Curves.decelerate, parent: _animController);
     _animOffset =
@@ -37,7 +37,7 @@ class _ShowUpAnimationState extends State<ShowUpAnimation> with TickerProviderSt
     if (widget.delay == null) {
       _animController.forward();
     } else {
-      _timer= Timer(Duration(milliseconds: widget.delay!), () {
+      _timer = Timer(Duration(milliseconds: widget.delay!), () {
         _animController.forward();
       });
     }
@@ -45,9 +45,9 @@ class _ShowUpAnimationState extends State<ShowUpAnimation> with TickerProviderSt
 
   @override
   void dispose() {
-    super.dispose();
+    _timer?.cancel();
     _animController.dispose();
-    _timer.cancel();
+    super.dispose();
   }
 
   @override

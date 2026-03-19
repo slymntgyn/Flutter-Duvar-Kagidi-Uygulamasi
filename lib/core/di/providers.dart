@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,8 +22,8 @@ import 'package:senseriduvarkagidi/features/settings/domain/repositories/setting
 import 'package:senseriduvarkagidi/features/user/data/repositories/user_repository_impl.dart';
 import 'package:senseriduvarkagidi/features/user/domain/repositories/user_repository.dart';
 
-import 'package:senseriduvarkagidi/features/ai_generation/data/services/openrouter_ai_service.dart';
-import 'package:senseriduvarkagidi/features/ai_generation/data/services/failover_ai_service.dart';
+import 'package:senseriduvarkagidi/core/errors/exceptions.dart';
+import 'package:senseriduvarkagidi/features/ai_generation/data/services/openai_ai_service.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/domain/services/ai_image_service.dart';
 import 'package:senseriduvarkagidi/features/settings/domain/entities/app_settings.dart';
 import 'package:senseriduvarkagidi/core/errors/result.dart';
@@ -103,24 +105,32 @@ final userRepositoryProvider = Provider<UserRepository>((ref) {
 
 // ==================== AI Service ====================
 
-/// AI gorsel uretim servisi.
-/// Failover mekanizmasi ile birden fazla provider destekler.
+/// AI gorsel uretim servisi - OpenAI DALL-E kullanir.
 final aiImageServiceProvider = Provider<AIImageService>((ref) {
   final settings = ref.watch(appSettingsProvider).valueOrNull;
 
-  if (settings == null) {
-    // Ayarlar henuz yuklenmediyse bos servis don
-    return FailoverAIService([]);
+  if (settings == null || settings.openAiApiKey.isEmpty) {
+    // API key henuz yuklenmedi veya tanimli degil
+    return _EmptyAIService();
   }
 
-  final openRouter = OpenRouterAIService(
+  return OpenAIAIService(
     dioClient: ref.read(dioClientProvider),
-    apiKey: settings.aiApiKey,
-    model: settings.aiModel,
+    apiKey: settings.openAiApiKey,
+    model: settings.openAiModel.isNotEmpty ? settings.openAiModel : 'dall-e-3',
   );
-
-  // Gelecekte ek servisler buraya eklenebilir:
-  // final stabilityAi = StabilityAIService(...);
-
-  return FailoverAIService([openRouter]);
 });
+
+/// API key olmadigi durum icin bos servis.
+class _EmptyAIService implements AIImageService {
+  @override
+  String get serviceId => 'none';
+
+  @override
+  Future<bool> isAvailable() async => false;
+
+  @override
+  Future<Uint8List> generateImage(dynamic request) async {
+    throw const AIServiceException('OpenAI API anahtari tanimli degil');
+  }
+}

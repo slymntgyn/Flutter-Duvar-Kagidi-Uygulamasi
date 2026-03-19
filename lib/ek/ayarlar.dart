@@ -14,43 +14,52 @@ class ayarlar{
   static String aiDuvarKagidiUretmeModel="";
 
   static void Ayarlari_Yukle(List<Ayarlar> list){
-    if(list==null)
+    if(list.isEmpty) {
       return;
-
-    if(list.length==0)
-      return;
+    }
 
     for (var item in list) {
-      if (item.adi == "RESIM SUNUCUSU")
+      if (item.adi == "RESIM SUNUCUSU") {
         resimsunucusu =item.deger;
-      if (item.adi == "BAKIM VAR MI")
+      }
+      if (item.adi == "BAKIM VAR MI") {
         bakimvarmi =item.deger;
-      if (item.adi == "ODULLU REKLAM ACIK MI")
+      }
+      if (item.adi == "ODULLU REKLAM ACIK MI") {
         odullureklamacikmi =item.deger;
-      if (item.adi == "ODULLU REKLAM ID")
+      }
+      if (item.adi == "ODULLU REKLAM ID") {
         odulluReklamId =item.deger;
-      if (item.adi == "TELEGRAM BUTON LINKI")
+      }
+      if (item.adi == "TELEGRAM BUTON LINKI") {
         telegramlink =item.deger;
-      if (item.adi == "BANNER REKLAM ID")
+      }
+      if (item.adi == "BANNER REKLAM ID") {
         bannerReklamId =item.deger;
-      if (item.adi == "BANNER REKLAM ACIK MI")
+      }
+      if (item.adi == "BANNER REKLAM ACIK MI") {
         bannerReklamAcikMi =item.deger;
-      if (item.adi == "AI API KEY")
+      }
+      if (item.adi == "AI API KEY") {
         aiapikey =item.deger;
-      if (item.adi == "AI DUVAR KAĞIGI URETME LIMIT")
+      }
+      if (item.adi == "AI DUVAR KAĞIGI URETME LIMIT") {
         aiDuvarKagidiUretmeLimit =item.deger;
-      if (item.adi == "AI DUVAR KAĞIGI URETME MODEL")
+      }
+      if (item.adi == "AI DUVAR KAĞIGI URETME MODEL") {
         aiDuvarKagidiUretmeModel =item.deger;
+      }
     }
 
   }
 
 
   static bool String_To_Bool(String sonuc){
-    if(sonuc=="E")
+    if(sonuc=="E") {
       return true;
-    else
+    } else {
       return false;
+    }
   }
 
   static int String_To_Int(String sonuc){

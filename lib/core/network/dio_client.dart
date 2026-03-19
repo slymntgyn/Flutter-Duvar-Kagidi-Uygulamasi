@@ -15,6 +15,7 @@ class DioClient {
       baseUrl: ApiConstants.baseUrl,
       connectTimeout: ApiConstants.connectTimeout,
       receiveTimeout: ApiConstants.receiveTimeout,
+      responseType: ResponseType.plain, // response.data her zaman String olsun, jsonDecode ile ayristir
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
     ));
     _dio.interceptors.add(_RetryInterceptor(_dio));
@@ -38,9 +39,14 @@ class DioClient {
   }
 
   /// Internal API icin POST istegi.
-  Future<Response<T>> post<T>(String path, {dynamic data}) async {
+  Future<Response<T>> post<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
-      return await _dio.post<T>(path, data: data);
+      return await _dio.post<T>(path,
+          data: data, queryParameters: queryParameters);
     } on DioException catch (e) {
       throw _mapDioException(e);
     }

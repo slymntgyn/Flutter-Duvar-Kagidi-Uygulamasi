@@ -12,11 +12,11 @@ class Widgets {
         color: Colors.black87,
         child: Center(
             child: Card(
-                shape: RoundedRectangleBorder(
+                shape: const RoundedRectangleBorder(
                     borderRadius: BorderRadius.all(Radius.circular(20))),
                 elevation: 8,
                 child: Container(
-                    padding: EdgeInsets.fromLTRB(4, 4, 16, 4),
+                    padding: const EdgeInsets.fromLTRB(4, 4, 16, 4),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -34,7 +34,7 @@ class Widgets {
   {
     return
       ListTile(
-        subtitle:  new Row(
+        subtitle:  Row(
           children: [
             Expanded(child:
             Card(
@@ -136,10 +136,10 @@ class Widgets {
       ) {
     return DropdownButtonFormField<String>(
       value: selectedGender,
-      hint: Text('Cinsiyet Seçin', style: TextStyle(color: Colors.white)),
-      icon: Icon(Icons.arrow_downward, color: Colors.white),
+      hint: const Text('Cinsiyet Seçin', style: TextStyle(color: Colors.white)),
+      icon: const Icon(Icons.arrow_downward, color: Colors.white),
       dropdownColor: Colors.white, // Açıldığında arka plan beyaz
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         labelStyle: TextStyle(color: Colors.white),
         enabledBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: Colors.black), // Normal alt çizgi siyah
@@ -148,7 +148,7 @@ class Widgets {
           borderSide: BorderSide(color: Colors.black), // Odaklandığında siyah alt çizgi
         ),
       ),
-      style: TextStyle(color: Colors.white), // Dropdown kapalıyken beyaz metin
+      style: const TextStyle(color: Colors.white), // Dropdown kapalıyken beyaz metin
       items: genderOptions.map((String gender) {
         return DropdownMenuItem<String>(
           value: gender,
@@ -158,8 +158,8 @@ class Widgets {
                 gender == 'Erkek' ? Icons.male : gender == 'Kadın' ? Icons.female : Icons.transgender,
                 color: gender == 'Erkek' ? Colors.blue : gender == 'Kadın' ? Colors.pink : Colors.purple,
               ),
-              SizedBox(width: 8),
-              Text(gender, style: TextStyle(color: Colors.black)), // Açıldığında siyah metin
+              const SizedBox(width: 8),
+              Text(gender, style: const TextStyle(color: Colors.black)), // Açıldığında siyah metin
             ],
           ),
         );

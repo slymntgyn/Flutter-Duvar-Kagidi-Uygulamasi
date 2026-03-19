@@ -1,35 +1,32 @@
 import 'dart:math' as math;
-import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// Third party packages
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:lottie/lottie.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:wallpaper_manager_plus/wallpaper_manager_plus.dart';
 
-// Backward-compatible local imports
 import 'package:senseriduvarkagidi/ek/genel.dart';
 import 'package:senseriduvarkagidi/ek/yardimci.dart';
 import 'package:senseriduvarkagidi/ek/ayarlar.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
 import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
-import 'package:senseriduvarkagidi/Screens/ImageDetay.dart';
 import 'package:senseriduvarkagidi/core/widgets/wallpaper_location_dialog.dart';
+import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
+import 'package:senseriduvarkagidi/features/premium/presentation/screens/premium_paywall_screen.dart';
+import 'package:senseriduvarkagidi/features/wallpaper/presentation/screens/image_detail_screen.dart';
 
-/// Explore (Kesfet) tab - full-screen vertical PageView of wallpaper images.
-///
-/// Extracted from the old Sayfalar.dart `_buildImagesPage` section.
-/// Supports double-tap to favorite with Lottie animation, lazy image loading,
-/// and action buttons for favorite / set-wallpaper / download.
+/// Explore (Kesfet) tab — Pro UI.
+/// Full-screen vertical PageView + glassmorphism action pill + gradient overlay
+/// + vertical page indicator + navigation to ImageDetailScreen.
 class ExploreTab extends ConsumerStatefulWidget {
   const ExploreTab({super.key});
 
@@ -39,34 +36,22 @@ class ExploreTab extends ConsumerStatefulWidget {
 
 class _ExploreTabState extends ConsumerState<ExploreTab>
     with TickerProviderStateMixin {
-  // ---------------------------------------------------------------------------
-  // Controllers
-  // ---------------------------------------------------------------------------
   late PageController _imagePageController;
   late AnimationController _likeAnimationController;
   late AnimationController _buttonAnimationController;
 
-  // ---------------------------------------------------------------------------
-  // State
-  // ---------------------------------------------------------------------------
   int _currentImageIndex = 0;
   bool _isProcessing = false;
   bool _isWallpaperProcessing = false;
   bool _showLikeAnimation = false;
-  Color _favoriteButtonColor = Colors.white;
+  bool _isFavorite = false;
 
-  // ---------------------------------------------------------------------------
-  // Data - lazy loading
-  // ---------------------------------------------------------------------------
   List<ImageList> _imageList = [];
   final List<Widget> _imageWidgets = [];
 
   static const int _initialLoadCount = 3;
   static const int _loadMoreCount = 2;
 
-  // ---------------------------------------------------------------------------
-  // Lifecycle
-  // ---------------------------------------------------------------------------
   @override
   void initState() {
     super.initState();
@@ -87,13 +72,11 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   }
 
   void _initializeData() {
-    // Shuffled copy of Genel.Resimler (backward compatible)
     _imageList = List<ImageList>.from(Genel.Resimler);
     _imageList.shuffle(math.Random());
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialImages();
-      _updateFavoriteButtonColor();
+      _updateFavoriteState();
     });
   }
 
@@ -105,9 +88,6 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     super.dispose();
   }
 
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -115,6 +95,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
         // Full-screen vertical PageView
         GestureDetector(
           onDoubleTap: _onImageDoubleTap,
+          onTap: _navigateToDetail,
           child: PageView.builder(
             scrollDirection: Axis.vertical,
             controller: _imagePageController,
@@ -124,74 +105,148 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
           ),
         ),
 
-        // Right-side action buttons
-        _buildImageActionButtons(),
+        // Gradient info overlay (bottom)
+        _buildBottomGradientOverlay(),
 
-        // Lottie like animation overlay
+        // Glassmorphism action pill (right side)
+        _buildGlassActionPill(),
+
+        // Vertical page indicator (right edge)
+        _buildPageIndicator(),
+
+        // Lottie like animation
         if (_showLikeAnimation) _buildLikeAnimation(),
 
-        // Processing overlay (download / wallpaper)
+        // Processing overlay
         if (_isProcessing) _buildProcessingOverlay(),
       ],
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Action buttons
+  // Bottom gradient info overlay
   // ---------------------------------------------------------------------------
-  Widget _buildImageActionButtons() {
+  Widget _buildBottomGradientOverlay() {
+    if (_imageList.isEmpty || _currentImageIndex >= _imageList.length) {
+      return const SizedBox.shrink();
+    }
+    final image = _imageList[_currentImageIndex];
     return Positioned(
-      right: 16,
-      bottom: 120,
-      child: AnimatedBuilder(
-        animation: _buttonAnimationController,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: 1.0 + (_buttonAnimationController.value * 0.1),
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  width: 1,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        height: 160,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [
+              Colors.black.withValues(alpha: 0.8),
+              Colors.transparent,
+            ],
+          ),
+        ),
+        child: Align(
+          alignment: Alignment.bottomLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 20, bottom: 100, right: 80),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (image.kategori.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      'Kategori ${image.kategori}',
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 11),
+                    ),
+                  ),
+                Row(
+                  children: [
+                    const Icon(Icons.hd_rounded, color: Colors.white70, size: 16),
+                    const SizedBox(width: 4),
+                    const Text('4K HD',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(width: 12),
+                    Icon(Icons.touch_app_rounded, color: Colors.white.withValues(alpha: 0.5), size: 14),
+                    const SizedBox(width: 4),
+                    Text('Detay icin dokun',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 11)),
+                  ],
                 ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildActionButton(
-                    icon: Icons.favorite_rounded,
-                    label: 'Begen',
-                    color: _favoriteButtonColor,
-                    onPressed: _toggleFavorite,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildActionButton(
-                    icon: Icons.wallpaper_rounded,
-                    label: 'Duvar\nKagidi',
-                    color: Colors.white,
-                    onPressed: _setWallpaperWithConfirmation,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildActionButton(
-                    icon: Icons.download_rounded,
-                    label: 'Indir',
-                    color: Colors.white,
-                    onPressed: _downloadImage,
-                  ),
-                ],
-              ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildActionButton({
+  // ---------------------------------------------------------------------------
+  // Glassmorphism action pill
+  // ---------------------------------------------------------------------------
+  Widget _buildGlassActionPill() {
+    return Positioned(
+      right: 12,
+      bottom: 120,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildPillButton(
+                  icon: _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  label: 'Begen',
+                  color: _isFavorite ? Colors.red : Colors.white,
+                  onPressed: _toggleFavorite,
+                ),
+                const SizedBox(height: 12),
+                _buildPillButton(
+                  icon: Icons.wallpaper_rounded,
+                  label: 'Duvar\nKagidi',
+                  color: Colors.blue,
+                  onPressed: _setWallpaperWithConfirmation,
+                ),
+                const SizedBox(height: 12),
+                _buildPillButton(
+                  icon: Icons.download_rounded,
+                  label: 'Indir',
+                  color: Colors.green,
+                  onPressed: _downloadImage,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPillButton({
     required IconData icon,
     required String label,
     required Color color,
@@ -207,7 +262,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -217,13 +272,49 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
               label,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.w600,
                 height: 1.1,
               ),
               textAlign: TextAlign.center,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Vertical page indicator
+  // ---------------------------------------------------------------------------
+  Widget _buildPageIndicator() {
+    if (_imageList.isEmpty) return const SizedBox.shrink();
+    final total = math.min(_imageWidgets.length, 8);
+    return Positioned(
+      right: 6,
+      top: 0,
+      bottom: 0,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(total, (i) {
+            final isActive = i == _currentImageIndex % total;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(vertical: 3),
+              width: isActive ? 6 : 4,
+              height: isActive ? 18 : 8,
+              decoration: BoxDecoration(
+                color: isActive
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(3),
+                boxShadow: isActive
+                    ? [BoxShadow(color: Colors.white.withValues(alpha: 0.5), blurRadius: 6)]
+                    : null,
+              ),
+            );
+          }),
         ),
       ),
     );
@@ -258,26 +349,26 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     return Container(
       color: Colors.black54,
       child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Islem yapiliyor...',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+              child: const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: 16),
+                  Text('Islem yapiliyor...',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -290,19 +381,16 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   void _loadInitialImages() {
     _imageWidgets.clear();
     final int loadCount = math.min(_initialLoadCount, _imageList.length);
-
     for (int i = 0; i < loadCount; i++) {
       _imageWidgets.add(_buildImageWidget(_imageList[i]));
     }
-
     if (mounted) setState(() {});
   }
 
   void _loadMoreImages() {
     final int currentLength = _imageWidgets.length;
-    final int remainingImages = _imageList.length - currentLength;
-    final int loadCount = math.min(_loadMoreCount, remainingImages);
-
+    final int remaining = _imageList.length - currentLength;
+    final int loadCount = math.min(_loadMoreCount, remaining);
     if (loadCount > 0) {
       for (int i = 0; i < loadCount; i++) {
         _imageWidgets.add(_buildImageWidget(_imageList[currentLength + i]));
@@ -312,49 +400,122 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   }
 
   Widget _buildImageWidget(ImageList imageData) {
+    final premium = ref.read(premiumProvider);
+    final isLocked = imageData.isPro && !premium.isPro;
+
     return SizedBox(
       width: double.infinity,
       height: double.infinity,
-      child: Hero(
-        tag: imageData.id,
-        child: CachedNetworkImage(
-          imageUrl: '${ayarlar.resimsunucusu}${imageData.yol}',
-          fit: BoxFit.cover,
-          memCacheWidth: 800,
-          memCacheHeight: 1200,
-          placeholder: (context, url) => Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.grey[300]!,
-                  Colors.grey[400]!,
-                ],
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Hero(
+            tag: 'explore_${imageData.id}',
+            child: CachedNetworkImage(
+              imageUrl: '${ayarlar.resimsunucusu}${imageData.yol}',
+              fit: BoxFit.cover,
+              memCacheWidth: 800,
+              memCacheHeight: 1200,
+              placeholder: (context, url) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.grey[850]!, Colors.grey[900]!],
+                  ),
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white38)),
+                ),
               ),
-            ),
-            child: const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
+              errorWidget: (context, url, error) => Container(
+                color: Colors.grey[900],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: Colors.grey[600]),
+                    const SizedBox(height: 8),
+                    Text('Resim yuklenemedi',
+                        style: TextStyle(color: Colors.grey[600])),
+                  ],
+                ),
               ),
             ),
           ),
-          errorWidget: (context, url, error) => Container(
-            color: Colors.grey[300],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 48,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Resim yuklenemedi',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
+          // Pro kilit overlay
+          if (isLocked) _buildProLockOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProLockOverlay() {
+    return GestureDetector(
+      onTap: _showPaywall,
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            color: Colors.black.withValues(alpha: 0.45),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFD700), Color(0xFFFF8C00)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.amber.withValues(alpha: 0.5),
+                          blurRadius: 24,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.lock_rounded,
+                        color: Colors.white, size: 40),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFD700), Color(0xFFFF8C00)],
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.workspace_premium_rounded,
+                            color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'PRO Ozel Icerik',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Pro\'ya gec, tum iceriklerden yararlan',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -362,32 +523,61 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     );
   }
 
+  void _showPaywall() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PremiumPaywallScreen()),
+    );
+  }
+
   // ---------------------------------------------------------------------------
-  // Page change & favorite color
+  // Page change & state updates
   // ---------------------------------------------------------------------------
   void _onImagePageChanged(int index) {
-    setState(() {
-      _currentImageIndex = index;
-    });
+    setState(() => _currentImageIndex = index);
+    _updateFavoriteState();
+    if (index >= _imageWidgets.length - 1) _loadMoreImages();
+  }
 
-    _updateFavoriteButtonColor();
-
-    // Load more images when near the end
-    if (index >= _imageWidgets.length - 1) {
-      _loadMoreImages();
+  void _updateFavoriteState() {
+    if (_currentImageIndex < _imageList.length) {
+      setState(() {
+        _isFavorite = Yardimci.favori_resimler_Kontrol(
+            _imageList[_currentImageIndex].id);
+      });
     }
   }
 
-  void _updateFavoriteButtonColor() {
-    if (_currentImageIndex < _imageList.length) {
-      setState(() {
-        _favoriteButtonColor = Yardimci.favori_resimler_Kontrol(
-          _imageList[_currentImageIndex].id,
-        )
-            ? Colors.red
-            : Colors.white;
-      });
+  // ---------------------------------------------------------------------------
+  // Navigate to detail
+  // ---------------------------------------------------------------------------
+  /// Mevcut resim pro mu ve kullanici pro degil mi kontrol eder.
+  bool _isCurrentImageLocked() {
+    if (_currentImageIndex >= _imageList.length) return false;
+    final image = _imageList[_currentImageIndex];
+    final premium = ref.read(premiumProvider);
+    return image.isPro && !premium.isPro;
+  }
+
+  void _navigateToDetail() {
+    if (_currentImageIndex >= _imageList.length) return;
+    if (_isCurrentImageLocked()) {
+      _showPaywall();
+      return;
     }
+    final image = _imageList[_currentImageIndex];
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (ctx, anim, secAnim) => ImageDetailScreen(
+          image: image,
+          heroTag: 'explore_${image.id}',
+        ),
+        transitionsBuilder: (ctx, anim, secAnim, child) {
+          return FadeTransition(opacity: anim, child: child);
+        },
+      ),
+    ).then((_) => _updateFavoriteState());
   }
 
   // ---------------------------------------------------------------------------
@@ -395,6 +585,10 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   // ---------------------------------------------------------------------------
   void _onImageDoubleTap() {
     HapticFeedback.mediumImpact();
+    if (_isCurrentImageLocked()) {
+      _showPaywall();
+      return;
+    }
     _toggleFavorite();
   }
 
@@ -403,52 +597,40 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   // ---------------------------------------------------------------------------
   Future<void> _toggleFavorite() async {
     if (_currentImageIndex >= _imageList.length || !mounted) return;
-
     final imageId = _imageList[_currentImageIndex].id;
-    final bool isFavorite = Yardimci.favori_resimler_Kontrol(imageId);
+    final bool wasFavorite = Yardimci.favori_resimler_Kontrol(imageId);
 
     try {
       await ImageList.FavorilereEkle(context, imageId);
+      if (!mounted) return;
+      Yardimci.favori_resim_ekle(imageId.toString());
 
-      if (!isFavorite) {
-        // Adding to favorites
-        Yardimci.favori_resim_ekle(imageId.toString());
-
+      if (!wasFavorite) {
         setState(() {
-          _favoriteButtonColor = Colors.red;
+          _isFavorite = true;
           _showLikeAnimation = true;
         });
-
         _likeAnimationController.forward().then((_) {
           _likeAnimationController.reset();
-          if (mounted) {
-            setState(() {
-              _showLikeAnimation = false;
-            });
-          }
+          if (mounted) setState(() => _showLikeAnimation = false);
         });
       } else {
-        // Removing from favorites
-        Yardimci.favori_resim_ekle(imageId.toString());
-
-        setState(() {
-          _favoriteButtonColor = Colors.white;
-        });
+        setState(() => _isFavorite = false);
       }
     } catch (e) {
-      if (mounted) {
-        _updateFavoriteButtonColor();
-        _showErrorAlert('Islem tamamlanamadi');
-      }
+      if (mounted) _updateFavoriteState();
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Set wallpaper flow
+  // Set wallpaper
   // ---------------------------------------------------------------------------
   void _setWallpaperWithConfirmation() {
     if (_isWallpaperProcessing) return;
-
+    if (_isCurrentImageLocked()) {
+      _showPaywall();
+      return;
+    }
     HapticFeedback.lightImpact();
     if (ayarlar.odullureklamacikmi == '1') {
       _showRewardedAdForWallpaper();
@@ -472,79 +654,37 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
 
   void _showWallpaperLocationDialog() async {
     final location = await WallpaperLocationDialog.show(context);
+    if (!mounted) return;
     if (location != null && _currentImageIndex < _imageList.length) {
-      _performSetWallpaper(
-        _imageList[_currentImageIndex],
-        location.value,
-      );
+      _performSetWallpaper(_imageList[_currentImageIndex], location.value);
     }
   }
 
   Future<void> _performSetWallpaper(
-    ImageList imageData,
-    int wallpaperLocation,
-  ) async {
+      ImageList imageData, int wallpaperLocation) async {
     if (_isWallpaperProcessing) return;
-
     try {
       setState(() {
         _isWallpaperProcessing = true;
         _isProcessing = true;
       });
-
       final url = '${ayarlar.resimsunucusu}${imageData.yol}';
       final file = await DefaultCacheManager().getSingleFile(url);
-
-      String? result;
-      try {
-        result =
-            await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
-      } catch (wallpaperError) {
-        throw Exception(
-            'Wallpaper ayarlanamadi: ${wallpaperError.toString()}');
-      }
-
+      final result =
+          await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
+      if (!mounted) return;
       if (result == 'Wallpaper set successfully' ||
-          result?.contains('success') == true) {
+          (result ?? '').contains('success')) {
         try {
-          await Kullanici.IslemLog(
-            context,
-            Genel.CihazId,
-            'Duvar Kagidi Yapma',
-            imageData.id,
-          );
-        } catch (logError) {
-          // Log error should not block the user
-          debugPrint('Log error: $logError');
-        }
-
-        String locationText = '';
-        switch (wallpaperLocation) {
-          case 1:
-            locationText = 'ana ekrana';
-            break;
-          case 2:
-            locationText = 'kilit ekranina';
-            break;
-          case 3:
-            locationText = 'her iki ekrana';
-            break;
-        }
-
-        if (mounted) {
-          _showSuccessAlert(
-              'Duvar kagidi $locationText basariyla ayarlandi!');
-        }
+          await Kullanici.IslemLog(context, Genel.CihazId,
+              'Duvar Kagidi Yapma', imageData.id);
+        } catch (_) {}
+        _showSuccessAlert('Duvar kagidi basariyla ayarlandi!');
       } else {
-        if (mounted) {
-          _showErrorAlert('Duvar kagidi ayarlanamadi');
-        }
+        _showErrorAlert('Duvar kagidi ayarlanamadi');
       }
     } catch (e) {
-      debugPrint('Wallpaper set error: $e');
-      if (mounted) {
-        _showErrorAlert('Bir hata olustu: ${e.toString()}');
-      }
+      _showErrorAlert('Bir hata olustu: ${e.toString()}');
     } finally {
       if (mounted) {
         setState(() {
@@ -556,11 +696,14 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   }
 
   // ---------------------------------------------------------------------------
-  // Download flow
+  // Download
   // ---------------------------------------------------------------------------
   void _downloadImage() {
     if (_currentImageIndex >= _imageList.length) return;
-
+    if (_isCurrentImageLocked()) {
+      _showPaywall();
+      return;
+    }
     final imageData = _imageList[_currentImageIndex];
     if (ayarlar.odullureklamacikmi == '1') {
       _showRewardedAdForDownload(imageData);
@@ -585,44 +728,25 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   Future<void> _download(ImageList imageData) async {
     try {
       setState(() => _isProcessing = true);
-
       final imageUrl = '${ayarlar.resimsunucusu}${imageData.yol}';
-      final DateTime now = DateTime.now();
-
-      // Download image bytes
-      final response = await Dio().get(
-        imageUrl,
-        options: Options(responseType: ResponseType.bytes),
-      );
-
-      final Uint8List imageBytes = Uint8List.fromList(response.data);
-
-      // Request gallery permission
-      final PermissionState ps =
-          await PhotoManager.requestPermissionExtend();
+      final now = DateTime.now();
+      final response = await Dio()
+          .get(imageUrl, options: Options(responseType: ResponseType.bytes));
+      final imageBytes = Uint8List.fromList(response.data);
+      final ps = await PhotoManager.requestPermissionExtend();
       if (!ps.isAuth && ps != PermissionState.limited) {
         _showErrorAlert('Galeriyi kaydetmek icin izin verilmedi.');
         return;
       }
-
-      // Save to gallery
-      final asset = await PhotoManager.editor.saveImage(
-        imageBytes,
-        filename: 'wallpaper_${now.millisecondsSinceEpoch}',
-        title: 'wallpaper_${now.millisecondsSinceEpoch}',
-      );
-
-      if (asset != null) {
+      final asset = await PhotoManager.editor.saveImage(imageBytes,
+          filename: 'wallpaper_${now.millisecondsSinceEpoch}',
+          title: 'wallpaper_${now.millisecondsSinceEpoch}');
+      if (!mounted) return;
+      if (asset.id.isNotEmpty) {
         try {
           await Kullanici.IslemLog(
-            context,
-            Genel.CihazId,
-            'Download',
-            imageData.id,
-          );
-        } catch (logError) {
-          debugPrint('Download log error: $logError');
-        }
+              context, Genel.CihazId, 'Download', imageData.id);
+        } catch (_) {}
         _showSuccessAlert('Resim basariyla indirildi!');
       } else {
         _showErrorAlert('Resim indirilemedi');
@@ -630,9 +754,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     } catch (e) {
       _showErrorAlert('Bir hata olustu: ${e.toString()}');
     } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -640,26 +762,22 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   // Alerts
   // ---------------------------------------------------------------------------
   void _showSuccessAlert(String message) {
-    if (mounted) {
-      QuickAlert.show(
+    if (!mounted) return;
+    QuickAlert.show(
         context: context,
         type: QuickAlertType.success,
         title: 'Basarili!',
         text: message,
-        confirmBtnColor: Colors.teal,
-      );
-    }
+        confirmBtnColor: Colors.teal);
   }
 
   void _showErrorAlert(String message) {
-    if (mounted) {
-      QuickAlert.show(
+    if (!mounted) return;
+    QuickAlert.show(
         context: context,
         type: QuickAlertType.error,
         title: 'Hata!',
         text: message,
-        confirmBtnColor: Colors.red,
-      );
-    }
+        confirmBtnColor: Colors.red);
   }
 }

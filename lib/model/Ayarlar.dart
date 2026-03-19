@@ -11,24 +11,21 @@ class Ayarlar{
   String deger="";
 
   Ayarlar.fromJson(Map<String, dynamic> json) {
-    adi=json['adi'] as String;
-    deger=json['deger'] as String;
-
-    adi=adi==null?"":adi;
-    deger=deger==null?"":deger;
+    adi = json['adi'] as String? ?? "";
+    deger = json['deger'] as String? ?? "";
   }
   static Future<List<Ayarlar>?> Ayarlari_Getir(BuildContext context) async {
     try {
 
-      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "DuvarKagidi/GetAyarlar");
+      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "ayar");
       if(result.hata) {
       }else {
         if(result.sonuc!="") {
           var jsonlist = jsonDecode(result.sonuc) as List;
-          List<Ayarlar> list = new List<Ayarlar>.empty(growable: true);
-          jsonlist.forEach((e) {
+          List<Ayarlar> list = List<Ayarlar>.empty(growable: true);
+          for (var e in jsonlist) {
             list.add(Ayarlar.fromJson(e));
-          });
+          }
           return list;
         }
       }

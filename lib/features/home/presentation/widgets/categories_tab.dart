@@ -1,27 +1,20 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:hyper_effects/hyper_effects.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
-// Riverpod providers & theme
-import 'package:senseriduvarkagidi/core/di/providers.dart';
-import 'package:senseriduvarkagidi/core/theme/app_theme.dart';
-
-// Legacy imports for backward compatibility
 import 'package:senseriduvarkagidi/ek/genel.dart';
-import 'package:senseriduvarkagidi/ek/yardimci.dart';
 import 'package:senseriduvarkagidi/ek/ayarlar.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
-import 'package:senseriduvarkagidi/Screens/KategoriResim.dart';
-import 'package:senseriduvarkagidi/Screens/YapayZeka.dart';
+import 'package:senseriduvarkagidi/features/wallpaper/presentation/screens/category_images_screen.dart';
 
-/// Categories tab extracted from legacy Sayfalar.dart.
-///
-/// Displays the app header (welcome + dark-mode toggle), an AI wallpaper
-/// generation button, and a scrollable list of category cards.
+/// Kategoriler tab — Pro UI.
+/// Animated gradient hero baslik, arama/filtreleme, glassmorphism kartlar,
+/// shimmer yukleme, pull-to-refresh, staggered masonry grid.
 class CategoriesTab extends ConsumerStatefulWidget {
   const CategoriesTab({super.key});
 
@@ -30,524 +23,447 @@ class CategoriesTab extends ConsumerStatefulWidget {
 }
 
 class _CategoriesTabState extends ConsumerState<CategoriesTab>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _aiButtonAnimationController;
-  Timer? _pulseTimer;
+    with TickerProviderStateMixin {
+  late final AnimationController _headerGradientController;
+  late final Animation<double> _headerGradientAnimation;
 
-  final List<Widget> _categoryWidgets = [];
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  String _searchQuery = '';
+  List<KategoriList> _filteredCategories = [];
 
   @override
   void initState() {
     super.initState();
-    _aiButtonAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+    _headerGradientController = AnimationController(
       vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
+    _headerGradientAnimation = CurvedAnimation(
+      parent: _headerGradientController,
+      curve: Curves.easeInOut,
     );
-
+    _searchController.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _buildCategoryWidgets();
-      _startAIButtonAnimation();
+      _loadCategories();
     });
   }
 
   @override
   void dispose() {
-    _pulseTimer?.cancel();
-    _aiButtonAnimationController.dispose();
+    _headerGradientController.dispose();
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  // ---------------------------------------------------------------------------
-  // AI button pulsing animation
-  // ---------------------------------------------------------------------------
-
-  void _startAIButtonAnimation() {
-    _pulseTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (mounted) {
-        _aiButtonAnimationController.forward().then((_) {
-          if (mounted) _aiButtonAnimationController.reverse();
-        });
-      }
+  void _loadCategories() {
+    if (!mounted) return;
+    setState(() {
+      _filteredCategories = List.from(Genel.Kategoriler);
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // Category widget list builder
-  // ---------------------------------------------------------------------------
-
-  void _buildCategoryWidgets() {
-    _categoryWidgets.clear();
-
-    for (int i = 0; i < Genel.Kategoriler.length; i++) {
-      _categoryWidgets.add(_buildCategoryCard(Genel.Kategoriler[i], i));
-    }
-
-    if (mounted) setState(() {});
+  void _onSearchChanged() {
+    final q = _searchController.text.toLowerCase();
+    setState(() {
+      _searchQuery = q;
+      _filteredCategories = Genel.Kategoriler
+          .where((cat) => cat.kategori.toLowerCase().contains(q))
+          .toList();
+    });
   }
 
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
+  Future<void> _onRefresh() async {
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    _loadCategories();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Column(
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      child: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // Gradient hero header + search bar (pinned)
+          _buildSliverAppBar(),
+          // Categories grid
+          _filteredCategories.isEmpty
+              ? _searchQuery.isNotEmpty
+                  ? SliverFillRemaining(child: _buildNotFound())
+                  : SliverFillRemaining(child: _buildLoadingPlaceholder())
+              : _buildCategoryGrid(),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sliver AppBar with gradient + search
+  // ---------------------------------------------------------------------------
+  Widget _buildSliverAppBar() {
+    return SliverPersistentHeader(
+      pinned: true,
+      delegate: _SearchHeaderDelegate(
+        headerGradientAnimation: _headerGradientAnimation,
+        searchController: _searchController,
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Masonry category grid
+  // ---------------------------------------------------------------------------
+  Widget _buildCategoryGrid() {
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      sliver: SliverMasonryGrid.count(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childCount: _filteredCategories.length,
+        itemBuilder: (context, index) =>
+            _buildCategoryCard(_filteredCategories[index], index),
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(KategoriList category, int index) {
+    final isLong = index % 3 == 0;
+    final height = isLong ? 220.0 : 170.0;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (ctx, anim, secAnim) =>
+                CategoryImagesScreen(category: category),
+            transitionsBuilder: (ctx, anim, secAnim, child) {
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
+              final tween =
+                  Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.ease));
+              return SlideTransition(position: anim.drive(tween), child: child);
+            },
+          ),
+        );
+      },
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              _buildAppHeader(),
-              const SizedBox(height: 16),
-              _buildAIWallpaperButton(),
+              // Background image
+              CachedNetworkImage(
+                imageUrl:
+                    '${ayarlar.resimsunucusu}${category.kategorI_RESMI}',
+                fit: BoxFit.cover,
+                placeholder: (context, url) => _ShimmerBox(),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.broken_image_outlined),
+                ),
+              ),
+
+              // Gradient overlay
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.75),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Glassmorphism label
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        border: Border(
+                          top: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              category.kategori,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                shadows: [
+                                  Shadow(
+                                      offset: Offset(1, 1),
+                                      blurRadius: 3,
+                                      color: Colors.black54),
+                                ],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: Colors.white.withValues(alpha: 0.7),
+                            size: 14,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-        SliverPadding(
-          padding: const EdgeInsets.only(bottom: 100),
-          sliver: _categoryWidgets.isEmpty
-              ? SliverToBoxAdapter(child: _buildLoadingPlaceholder())
-              : SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _categoryWidgets[index],
-                    childCount: _categoryWidgets.length,
-                  ),
-                ),
-        ),
-      ],
+      ),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // App Header
+  // States
   // ---------------------------------------------------------------------------
-
-  Widget _buildAppHeader() {
-    final themeMode = ref.watch(themeProvider);
-    final isDark = themeMode != AppThemeMode.light;
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
+  Widget _buildLoadingPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.teal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              isDark ? Icons.dark_mode : Icons.light_mode,
-              color: Colors.teal,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hos Geldiniz',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color:
-                            Theme.of(context).textTheme.titleLarge?.color,
-                      ),
-                ),
-                Text(
-                  'En guzel duvar kagitlari',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.color
-                            ?.withValues(alpha: 0.7),
-                      ),
-                ),
-              ],
-            ),
-          ),
-          Transform.scale(
-            scale: 0.8,
-            child: Switch.adaptive(
-              value: isDark,
-              onChanged: _toggleTheme,
-              activeColor: Colors.teal,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text('Kategoriler yukleniyor...',
+              style: TextStyle(color: Colors.grey[500])),
         ],
       ),
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Theme toggle
-  // ---------------------------------------------------------------------------
-
-  void _toggleTheme(bool value) {
-    HapticFeedback.selectionClick();
-    ref.read(themeProvider.notifier).toggleTheme();
-
-    // Keep legacy static flag in sync for backward compatibility.
-    Genel.darkbutton = value;
-    Yardimci.Veri_Kaydet_String('darkmode', value.toString());
-  }
-
-  // ---------------------------------------------------------------------------
-  // AI Wallpaper Generation Button
-  // ---------------------------------------------------------------------------
-
-  Widget _buildAIWallpaperButton() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: AnimatedBuilder(
-        animation: _aiButtonAnimationController,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: 1.0 + (_aiButtonAnimationController.value * 0.05),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _navigateToAIWallpaperGenerator,
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        const Color(0xFF667eea),
-                        const Color(0xFF764ba2),
-                        Colors.purple.shade400,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.purple.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                      BoxShadow(
-                        color: Colors.blue.withValues(alpha: 0.2),
-                        blurRadius: 15,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // AI icon container
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: ShaderMask(
-                          shaderCallback: (bounds) => LinearGradient(
-                            colors: [
-                              Colors.white,
-                              Colors.white.withValues(alpha: 0.8),
-                            ],
-                          ).createShader(bounds),
-                          child: const Icon(
-                            Icons.auto_awesome,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-
-                      // Text content
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Row(
-                              children: [
-                                Text(
-                                  'AI Duvar Kagidi Olustur',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Flexible(
-                              child: Text(
-                                'Hayal gucunuzle...',
-                                style: TextStyle(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.8),
-                                  fontSize: 13,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Arrow icon
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          color: Colors.white.withValues(alpha: 0.8),
-                          size: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+  Widget _buildNotFound() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            '"$_searchQuery" icin sonuc bulunamadi',
+            style: TextStyle(color: Colors.grey[500]),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
+}
 
-  void _navigateToAIWallpaperGenerator() {
-    HapticFeedback.mediumImpact();
+// ---------------------------------------------------------------------------
+// Pinned search header delegate
+// ---------------------------------------------------------------------------
+class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Animation<double> headerGradientAnimation;
+  final TextEditingController searchController;
 
-    _aiButtonAnimationController.forward().then((_) {
-      if (mounted) _aiButtonAnimationController.reverse();
-    });
+  _SearchHeaderDelegate({
+    required this.headerGradientAnimation,
+    required this.searchController,
+  });
 
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const WallpaperGeneration(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(0.0, 1.0);
-          const end = Offset.zero;
-          const curve = Curves.fastOutSlowIn;
+  @override
+  double get minExtent => 70;
+  @override
+  double get maxExtent => 180;
 
-          final tween =
-              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-
-          final fadeAnimation = Tween(begin: 0.0, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: curve),
-          );
-
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: FadeTransition(
-              opacity: fadeAnimation,
-              child: child,
-            ),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 400),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Category Card
-  // ---------------------------------------------------------------------------
-
-  Widget _buildCategoryCard(KategoriList category, int index) {
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final progress = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _navigateToCategory(index),
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            height: 180,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Stack(
-                children: [
-                  // Category background image
-                  Positioned.fill(
-                    child: CachedNetworkImage(
-                      imageUrl:
-                          '${ayarlar.resimsunucusu}${category.kategorI_RESMI}',
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey[300],
-                        child: const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.broken_image_outlined),
-                      ),
-                    ),
-                  ),
-
-                  // Gradient overlay
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.7),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Category name & subtitle
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.lerp(const Color(0xFF667eea), const Color(0xFF764ba2),
+                    headerGradientAnimation.value)!,
+            Color.lerp(const Color(0xFF764ba2), const Color(0xFFf093fb),
+                    headerGradientAnimation.value)!,
+          ],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular((1 - progress) * 24),
+          bottomRight: Radius.circular((1 - progress) * 24),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            if (progress < 0.8) ...[
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Opacity(
+                      opacity: (1 - progress * 2).clamp(0.0, 1.0),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            category.kategori,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(1, 1),
-                                  blurRadius: 3,
-                                  color: Colors.black54,
+                            'Kategoriler',
+                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
-                            ),
                           ),
-                          const SizedBox(height: 4),
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.photo_library_outlined,
-                                color: Colors.white70,
-                                size: 16,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Koleksiyonu goruntule',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            '${Genel.Kategoriler.length} kategori',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ],
+                ),
+              ),
+            ],
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: TextField(
+                    controller: searchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Kategori ara...',
+                      hintStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6)),
+                      prefixIcon: Icon(Icons.search_rounded,
+                          color: Colors.white.withValues(alpha: 0.8)),
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.close_rounded,
+                                  color: Colors.white.withValues(alpha: 0.8)),
+                              onPressed: () => searchController.clear(),
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.2),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: Colors.white),
+                      ),
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ).scrollTransition((context, widget, event) {
-          return widget
-              .blur(event.phase == ScrollPhase.identity ? 0 : 3)
-              .scale(event.phase == ScrollPhase.identity ? 1 : 0.97);
-        }),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Category navigation
-  // ---------------------------------------------------------------------------
-
-  void _navigateToCategory(int categoryIndex) {
-    HapticFeedback.lightImpact();
-    Genel.SecilenKategori = categoryIndex.toString();
-
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            KategoriResim(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(1.0, 0.0);
-          const end = Offset.zero;
-          const curve = Curves.ease;
-
-          final tween =
-              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Loading placeholder
-  // ---------------------------------------------------------------------------
-
-  Widget _buildLoadingPlaceholder() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: List.generate(
-          3,
-          (index) => Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            height: 180,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
-          ),
+          ],
         ),
       ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SearchHeaderDelegate oldDelegate) => true;
+}
+
+// ---------------------------------------------------------------------------
+// Shimmer placeholder
+// ---------------------------------------------------------------------------
+class _ShimmerBox extends StatefulWidget {
+  @override
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
+}
+
+class _ShimmerBoxState extends State<_ShimmerBox>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat();
+    _anim = Tween<double>(begin: -1.5, end: 1.5).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment(_anim.value - 1, 0),
+              end: Alignment(_anim.value, 0),
+              colors: [Colors.grey[300]!, Colors.grey[100]!, Colors.grey[300]!],
+            ),
+          ),
+        );
+      },
     );
   }
 }

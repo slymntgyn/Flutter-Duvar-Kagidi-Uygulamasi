@@ -19,8 +19,9 @@ import 'package:senseriduvarkagidi/features/ai_generation/domain/entities/genera
 
 // Backward compatibility imports
 import 'package:senseriduvarkagidi/ek/ayarlar.dart';
+import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
+import 'package:senseriduvarkagidi/features/premium/presentation/screens/premium_paywall_screen.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
-import 'package:senseriduvarkagidi/ek/yardimci.dart';
 import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
 
 // ---------------------------------------------------------------------------
@@ -187,14 +188,6 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     _bannerAd?.load();
   }
 
-  int _dailyLimit() {
-    try {
-      return int.parse(ayarlar.aiDuvarKagidiUretmeLimit);
-    } catch (_) {
-      return ref.read(dailyLimitProvider).limit;
-    }
-  }
-
   // -------------------------------------------------------------------------
   // Actions
   // -------------------------------------------------------------------------
@@ -203,11 +196,17 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     final prompt = _promptController.text.trim();
     if (prompt.isEmpty) return;
 
-    final limitNotifier = ref.read(dailyLimitProvider.notifier);
-    if (!limitNotifier.canGenerate()) {
-      _showError('Gunluk uretim limitiniz doldu. Yarin tekrar deneyin.');
+    // Premium limit kontrolu
+    final premiumStatus = ref.read(premiumProvider);
+    if (!premiumStatus.canGenerate) {
+      HapticFeedback.mediumImpact();
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PremiumPaywallScreen()),
+      );
       return;
     }
+    final limitNotifier = ref.read(dailyLimitProvider.notifier);
 
     HapticFeedback.mediumImpact();
 
@@ -225,6 +224,7 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     if (state.generatedImageBytes != null) {
       // Successful generation
       await limitNotifier.increment();
+      await ref.read(premiumProvider.notifier).incrementUsage();
       await ref
           .read(generationHistoryProvider.notifier)
           .addEntry(state.generatedImageBytes!);
@@ -233,7 +233,18 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
       _showSuccess('Duvar kagidiniz basariyla olusturuldu!');
     } else if (state.error != null) {
       HapticFeedback.lightImpact();
-      _showError('Gorsel olusturulamadi. Lutfen tekrar deneyin.\n${state.error}');
+      final err = state.error ?? '';
+      String mesaj;
+      if (err.contains('API anahtari') || err.contains('api key') || err.contains('401') || err.contains('Unauthorized')) {
+        mesaj = 'OpenAI API anahtarı geçersiz veya tanımlı değil. Lütfen yönetici ile iletişime geçin.';
+      } else if (err.contains('bağlantı') || err.contains('baglanti') || err.contains('internet') || err.contains('ConnectionError') || err.contains('SocketException')) {
+        mesaj = 'İnternet bağlantısı yok. Lütfen bağlantınızı kontrol edin.';
+      } else if (err.contains('429') || err.contains('quota') || err.contains('Rate limit')) {
+        mesaj = 'OpenAI istek limiti aşıldı. Lütfen daha sonra tekrar deneyin.';
+      } else {
+        mesaj = 'Görsel oluşturulamadı. Lütfen tekrar deneyin.';
+      }
+      _showError(mesaj);
     }
   }
 
@@ -357,6 +368,7 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
 
       final result =
           await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
+        if (!mounted) return;
 
       if (result != null && result.isEmpty) {
         await Kullanici.IslemLog(
@@ -399,8 +411,9 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
         filename: 'ai_wallpaper_${now.millisecondsSinceEpoch}',
         title: 'ai_wallpaper_${now.millisecondsSinceEpoch}',
       );
+      if (!mounted) return;
 
-      if (asset != null) {
+      if (asset.id.isNotEmpty) {
         await Kullanici.IslemLog(
             context, Genel.CihazId, 'AI Download', 0);
         _showSuccess('AI duvar kagidi galeriye kaydedildi!');
@@ -814,6 +827,18 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
+        // Pro stilleri kilitle (index >= 6)
+        final styleIndex = _styleOptions.indexOf(style);
+        if (styleIndex >= 6) {
+          final premStatus = ref.read(premiumProvider);
+          if (!premStatus.canUseProStyles) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PremiumPaywallScreen()),
+            );
+            return;
+          }
+        }
         setState(() => _selectedStyle = style.name);
       },
       child: AnimatedContainer(

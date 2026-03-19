@@ -7,6 +7,7 @@ class WallpaperImageModel extends WallpaperImage {
     required super.id,
     required super.path,
     required super.categoryIds,
+    super.isPro,
   });
 
   factory WallpaperImageModel.fromJson(Map<String, dynamic> json) {
@@ -22,6 +23,7 @@ class WallpaperImageModel extends WallpaperImage {
       id: json['id'] as int? ?? 0,
       path: json['yol'] as String? ?? '',
       categoryIds: categoryIds,
+      isPro: json['iS_PRO'] as bool? ?? false,
     );
   }
 
@@ -29,5 +31,6 @@ class WallpaperImageModel extends WallpaperImage {
         'id': id,
         'yol': path,
         'kategori': categoryIds.join(';'),
+        'is_pro': isPro,
       };
 }

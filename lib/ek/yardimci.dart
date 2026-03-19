@@ -1,14 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/services.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:flutter/material.dart';
 import 'genel.dart';
-import 'dart:io' show Platform;
 import 'dart:io';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert'; // For utf8.encode
 import 'package:crypto/crypto.dart'; // For sha256
 
 class Yardimci {
@@ -86,7 +82,7 @@ var aa=0;
         text: "Lütfen duvar kağıdı yapmak istediğiniz ekranı seçiniz.",
       widget: Column(
         children: [
-          Padding(padding: EdgeInsets.fromLTRB(0, 10, 0, 0)),
+          const Padding(padding: EdgeInsets.fromLTRB(0, 10, 0, 0)),
           TextButton.icon(
             style: TextButton.styleFrom(
                 foregroundColor: Colors.black45,
@@ -175,36 +171,21 @@ return aa;
   }
 
   static String Tarih_Formatla(String tarih) {
-    if (tarih == null) return "";
-    //2020-09-17 00:00:00. => //17-09-2020 00:00:00
     String yeniTarih = tarih.replaceAll('.', '');
     try {
       String tarih2 = yeniTarih.split(' ')[0];
       String saat = yeniTarih.split(' ')[1];
-      return tarih2.split('-')[2] +
-          "-" +
-          tarih2.split('-')[1] +
-          "-" +
-          tarih2.split('-')[0] +
-          " " +
-          saat;
+      return "${tarih2.split('-')[2]}-${tarih2.split('-')[1]}-${tarih2.split('-')[0]} $saat";
     } catch (error) {
       return tarih;
     }
   }
 
   static String Tarih_Formatla2(String tarih) {
-    if (tarih == null) return "";
-    //2020-09-17 00:00:00. => //17-09-2020 00:00:00
     String yeniTarih = tarih.replaceAll('.', '');
     try {
       String tarih2 = yeniTarih.split(' ')[0];
-      String saat = yeniTarih.split(' ')[1];
-      return tarih2.split('-')[2] +
-          "/" +
-          tarih2.split('-')[1] +
-          "/" +
-          tarih2.split('-')[0];
+      return "${tarih2.split('-')[2]}/${tarih2.split('-')[1]}/${tarih2.split('-')[0]}";
     } catch (error) {
       return tarih;
     }
@@ -222,21 +203,19 @@ return aa;
     }
   }*/
   static bool Yetki_Kontrol(String yetki){
-    if(Genel.yetkiler!=null){
-      if(Genel.yetkiler.contains(yetki))
-        return true;
-      else
-        return false;
-    }else
+    if(Genel.yetkiler.contains(yetki))
+      return true;
+    else
       return false;
-  }
+    }
 
-  static Yetkileri_Yukle(String yetkiler_str){
+  static Yetkileri_Yukle(String yetkilerStr){
     try{
-      List<String> yetkiler=yetkiler_str.split(';');
+      List<String> yetkiler=yetkilerStr.split(';');
       for(var item in yetkiler){
-        if(item!="")
+        if(item!="") {
           Genel.yetkiler.add(item);
+        }
 
       }
     }catch(error){
@@ -244,25 +223,27 @@ return aa;
     }
 
   }
-  static favori_resimleri_Yukle(String favori_resimler){
+  static favori_resimleri_Yukle(String favoriResimler){
     try{
-      List<String> favoriresimler=favori_resimler.split(';');
+      List<String> favoriresimler=favoriResimler.split(';');
       for(var item in favoriresimler){
-        if(item!="")
+        if(item!="") {
           Genel.favoriresimler.add(item);
+        }
       }
     }catch(error){
 
     }
 
   }
-  static favori_resim_ekle(String favori_resim){
+  static favori_resim_ekle(String favoriResim){
     try{
 
-        if(Genel.favoriresimler.contains(favori_resim))
-          Genel.favoriresimler.remove(favori_resim);
-        else
-          Genel.favoriresimler.add(favori_resim);
+        if(Genel.favoriresimler.contains(favoriResim)) {
+          Genel.favoriresimler.remove(favoriResim);
+        } else {
+          Genel.favoriresimler.add(favoriResim);
+        }
 
 
 
@@ -283,21 +264,18 @@ return aa;
     return (preferences.getString(name) ?? "");
   }
   static bool favori_resimler_Kontrol(int yetki){
-    if(Genel.favoriresimler!=null){
-
-      if(Genel.favoriresimler.contains(yetki.toString()))
-        return true;
-      else
-        return false;
-    }else
+    if(Genel.favoriresimler.contains(yetki.toString()))
+      return true;
+    else
       return false;
-  }
+    }
 
   static double Bayt_to_Mb(int bayt) {
     if (bayt > 0) {
       return (bayt / (1000 * 1000));
-    } else
+    } else {
       return double.parse(bayt.toString());
+    }
   }
 
 

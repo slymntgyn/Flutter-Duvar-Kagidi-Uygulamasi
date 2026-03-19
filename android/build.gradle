@@ -24,9 +24,24 @@ subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
 
-
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+// ─── 16 KB Page Size: Tüm plugin subprojectleri NDK 27'ye zorla ───────────────
+// flutter.ndkVersion = 26.3.11579264 (16 KB DESTEKLEMİYOR).
+// plugins.withId, plugin uygulandığı anda çalışır — afterEvaluate hatasını önler.
+subprojects {
+    plugins.withId('com.android.library') {
+        android {
+            ndkVersion "27.0.12077973"
+        }
+    }
+    plugins.withId('com.android.application') {
+        android {
+            ndkVersion "27.0.12077973"
+        }
+    }
 }
 
 tasks.register("clean", Delete) {

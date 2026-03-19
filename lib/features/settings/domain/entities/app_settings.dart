@@ -8,9 +8,19 @@ class AppSettings {
   final String bannerAdId;
   final bool isBannerAdEnabled;
   final String telegramLink;
+
+  // OpenRouter AI ayarlari
   final String aiApiKey;
   final int aiDailyLimit;
   final String aiModel;
+
+  // OpenAI ayarlari
+  final String openAiApiKey;
+  final String openAiModel;
+
+  /// Sunucudan gelen AI provider tercih ayari ('openrouter' veya 'openai').
+  /// Kullanici uygulama icinden de degistirebilir.
+  final String aiProvider;
 
   const AppSettings({
     required this.imageServerUrl,
@@ -23,6 +33,9 @@ class AppSettings {
     required this.aiApiKey,
     required this.aiDailyLimit,
     required this.aiModel,
+    this.openAiApiKey = '',
+    this.openAiModel = 'dall-e-3',
+    this.aiProvider = 'openrouter',
   });
 
   /// Bos / default ayarlar.
@@ -37,5 +50,40 @@ class AppSettings {
     aiApiKey: '',
     aiDailyLimit: 3,
     aiModel: '',
+    openAiApiKey: '',
+    openAiModel: 'dall-e-3',
+    aiProvider: 'openrouter',
   );
+
+  AppSettings copyWith({
+    String? imageServerUrl,
+    bool? isMaintenanceMode,
+    bool? isRewardedAdEnabled,
+    String? rewardedAdId,
+    String? bannerAdId,
+    bool? isBannerAdEnabled,
+    String? telegramLink,
+    String? aiApiKey,
+    int? aiDailyLimit,
+    String? aiModel,
+    String? openAiApiKey,
+    String? openAiModel,
+    String? aiProvider,
+  }) {
+    return AppSettings(
+      imageServerUrl: imageServerUrl ?? this.imageServerUrl,
+      isMaintenanceMode: isMaintenanceMode ?? this.isMaintenanceMode,
+      isRewardedAdEnabled: isRewardedAdEnabled ?? this.isRewardedAdEnabled,
+      rewardedAdId: rewardedAdId ?? this.rewardedAdId,
+      bannerAdId: bannerAdId ?? this.bannerAdId,
+      isBannerAdEnabled: isBannerAdEnabled ?? this.isBannerAdEnabled,
+      telegramLink: telegramLink ?? this.telegramLink,
+      aiApiKey: aiApiKey ?? this.aiApiKey,
+      aiDailyLimit: aiDailyLimit ?? this.aiDailyLimit,
+      aiModel: aiModel ?? this.aiModel,
+      openAiApiKey: openAiApiKey ?? this.openAiApiKey,
+      openAiModel: openAiModel ?? this.openAiModel,
+      aiProvider: aiProvider ?? this.aiProvider,
+    );
+  }
 }
