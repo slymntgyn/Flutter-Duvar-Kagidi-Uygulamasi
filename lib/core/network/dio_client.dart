@@ -15,7 +15,8 @@ class DioClient {
       baseUrl: ApiConstants.baseUrl,
       connectTimeout: ApiConstants.connectTimeout,
       receiveTimeout: ApiConstants.receiveTimeout,
-      responseType: ResponseType.plain, // response.data her zaman String olsun, jsonDecode ile ayristir
+      responseType: ResponseType
+          .plain, // response.data her zaman String olsun, jsonDecode ile ayristir
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
     ));
     _dio.interceptors.add(_RetryInterceptor(_dio));
@@ -73,13 +74,14 @@ class DioClient {
   Future<Response<T>> externalGet<T>(
     String url, {
     ResponseType? responseType,
+    ProgressCallback? onReceiveProgress,
   }) async {
     try {
       return await _externalDio.get<T>(
         url,
-        options: responseType != null
-            ? Options(responseType: responseType)
-            : null,
+        options:
+            responseType != null ? Options(responseType: responseType) : null,
+        onReceiveProgress: onReceiveProgress,
       );
     } on DioException catch (e) {
       throw _mapDioException(e);
@@ -119,9 +121,7 @@ class _RetryInterceptor extends Interceptor {
       return handler.next(err);
     }
 
-    for (int attempt = 0;
-        attempt < AppConstants.maxRetryAttempts;
-        attempt++) {
+    for (int attempt = 0; attempt < AppConstants.maxRetryAttempts; attempt++) {
       try {
         await Future.delayed(AppConstants.retryDelays[attempt]);
 
@@ -153,7 +153,6 @@ class _RetryInterceptor extends Interceptor {
         err.type == DioExceptionType.sendTimeout ||
         err.type == DioExceptionType.receiveTimeout ||
         err.type == DioExceptionType.connectionError ||
-        (err.response?.statusCode != null &&
-            err.response!.statusCode! >= 500);
+        (err.response?.statusCode != null && err.response!.statusCode! >= 500);
   }
 }

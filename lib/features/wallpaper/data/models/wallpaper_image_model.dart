@@ -21,10 +21,46 @@ class WallpaperImageModel extends WallpaperImage {
 
     return WallpaperImageModel(
       id: json['id'] as int? ?? 0,
-      path: json['yol'] as String? ?? '',
+      path: _mergeApiPath(
+        (json['yol'] ?? '').toString(),
+        (json['resiM_ADI'] ?? '').toString(),
+      ),
       categoryIds: categoryIds,
-      isPro: json['iS_PRO'] as bool? ?? false,
+      isPro: _parseBool(json['iS_PRO']),
     );
+  }
+
+  static bool _parseBool(dynamic value) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == '1' ||
+          normalized == 'true' ||
+          normalized == 'evet' ||
+          normalized == 'yes';
+    }
+    return false;
+  }
+
+  static String _mergeApiPath(String rawPath, String rawFileName) {
+    final path = rawPath.trim();
+    final fileName = rawFileName.trim();
+
+    if (path.isNotEmpty && fileName.isNotEmpty) {
+      final cleanPath =
+          path.endsWith('/') ? path.substring(0, path.length - 1) : path;
+      final cleanFileName =
+          fileName.startsWith('/') ? fileName.substring(1) : fileName;
+      return '$cleanPath/$cleanFileName';
+    }
+
+    if (fileName.isNotEmpty) return fileName;
+    return path;
   }
 
   Map<String, dynamic> toJson() => {

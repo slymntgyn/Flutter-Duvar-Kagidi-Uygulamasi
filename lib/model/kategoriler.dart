@@ -2,16 +2,16 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:senseriduvarkagidi/core/constants/api_constants.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
 import 'package:senseriduvarkagidi/ek/restful.dart';
 import 'package:senseriduvarkagidi/ek/result.dart';
 import 'package:senseriduvarkagidi/ek/yardimci.dart';
 
-
-class KategoriList{
-  int id=0;
-  String kategori="";
-  String kategorI_RESMI="";
+class KategoriList {
+  int id = 0;
+  String kategori = "";
+  String kategorI_RESMI = "";
 
   KategoriList.fromJson(Map<String, dynamic> json) {
     id = json['id'] as int? ?? 0;
@@ -19,42 +19,45 @@ class KategoriList{
     kategorI_RESMI = json['kategorI_RESMI'] as String? ?? '';
   }
 
-  static Future<List<KategoriList>?> GetKategoriler(BuildContext context) async {
+  static Future<List<KategoriList>?> GetKategoriler(
+      BuildContext context) async {
     try {
+      Result_Get result =
+          await Restful.Get_Request(ApiConstants.baseUrl, context, "kategori");
 
-
-
-
-      Result_Get result = await Restful.Get_Request(Genel.web_api_link,context, "kategori");
-
+      if (!context.mounted) {
+        return null;
+      }
 
       if (result.hata) {
-        Yardimci.AlertDialogError(context, "Hata Oluştu", "Lütfen daha sonra tekrar deneyin");
+        Yardimci.AlertDialogError(
+            context, "Hata Oluştu", "Lütfen daha sonra tekrar deneyin");
       } else {
-        if(result.sonuc!="") {
+        if (result.sonuc != "") {
           var jsonlist = jsonDecode(result.sonuc.toString()) as List;
           List<KategoriList> list = List<KategoriList>.empty(growable: true);
-          for (var e in jsonlist) {
-            list.add(KategoriList.fromJson(e));
-
+          for (var json in jsonlist) {
+            debugPrint('Kategori raw JSON: $json');
+            list.add(KategoriList.fromJson(json));
           }
-          Genel.Kategoriler=list;
+          Genel.Kategoriler = List<KategoriList>.from(list);
 
-
-          print("object${Genel.Resimler}");
-
+          debugPrint('object${Genel.Resimler}');
 
           return list;
         }
       }
-    }
-    catch(error){
+    } catch (error) {
+      if (!context.mounted) {
+        return null;
+      }
       Yardimci.AlertDialogError(
           context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyiniz");
       return null;
     }
     return null;
   }
+
   static Future<void> ReklamYukle(BuildContext context) async {
     RewardedAd.load(
         adUnitId: Genel.adUnitId,

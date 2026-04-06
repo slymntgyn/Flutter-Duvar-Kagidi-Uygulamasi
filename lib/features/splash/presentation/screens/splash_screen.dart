@@ -7,6 +7,7 @@ import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 // New architecture imports
 import 'package:senseriduvarkagidi/core/di/providers.dart';
+import 'package:senseriduvarkagidi/core/errors/result.dart' as app_result;
 import 'package:senseriduvarkagidi/core/theme/app_theme.dart';
 
 // Old architecture imports (backward compatibility during migration)
@@ -39,6 +40,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   bool _hasError = false;
   String _errorMessage = '';
   double _progress = 0.0;
+  int _retryCount = 0;
+  bool _isAutoRetryScheduled = false;
+  int _autoRetrySeconds = 0;
+  Timer? _autoRetryTimer;
 
   @override
   void initState() {
@@ -113,10 +118,73 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       if (mounted) {
         setState(() {
           _hasError = true;
-          _errorMessage = e.toString();
+          _errorMessage = _toUserMessage(e);
         });
+        _scheduleAutoRetry();
       }
     }
+  }
+
+  void _scheduleAutoRetry() {
+    if (_isAutoRetryScheduled || _retryCount >= 2 || !mounted) return;
+
+    final int delaySeconds = _retryCount == 0 ? 3 : 6;
+    _isAutoRetryScheduled = true;
+    _autoRetrySeconds = delaySeconds;
+    _autoRetryTimer?.cancel();
+
+    _autoRetryTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || !_hasError) {
+        timer.cancel();
+        _isAutoRetryScheduled = false;
+        _autoRetryTimer = null;
+        return;
+      }
+
+      if (_autoRetrySeconds <= 1) {
+        timer.cancel();
+        _isAutoRetryScheduled = false;
+        _autoRetryTimer = null;
+        _retry();
+      } else {
+        setState(() {
+          _autoRetrySeconds--;
+        });
+      }
+    });
+  }
+
+  bool get _canContinueOffline {
+    return Genel.Resimler.isNotEmpty && Genel.Kategoriler.isNotEmpty;
+  }
+
+  void _continueOffline() {
+    if (!_canContinueOffline || !mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
+  }
+
+  String _toUserMessage(Object error) {
+    final raw = error.toString().trim();
+    final String message = raw.startsWith('Exception: ')
+        ? raw.substring('Exception: '.length).trim()
+        : raw;
+    final String lower = message.toLowerCase();
+
+    if (lower.contains('bakim') || lower.contains('maintenance')) {
+      return 'Sunucu su anda bakimda. Lutfen daha sonra tekrar dene.';
+    }
+    if (lower.contains('timeout') || lower.contains('zaman asimi')) {
+      return 'Baglanti zaman asimina ugradi. Internetini kontrol edip tekrar dene.';
+    }
+    if (lower.contains('socketexception') ||
+        lower.contains('connectionerror') ||
+        lower.contains('network')) {
+      return 'Internet baglantisi yok. Baglantini kontrol edip tekrar dene.';
+    }
+    return message;
   }
 
   /// Step 1 -- Check connection (lightweight, always succeeds for now)
@@ -136,8 +204,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // Sync Riverpod theme state with legacy flag
     final currentTheme = ref.read(themeProvider);
-    final isDarkInRiverpod =
-        currentTheme == AppThemeMode.dark || currentTheme == AppThemeMode.amoled;
+    final isDarkInRiverpod = currentTheme == AppThemeMode.dark ||
+        currentTheme == AppThemeMode.amoled;
     if (Genel.darkbutton && !isDarkInRiverpod) {
       ref.read(themeProvider.notifier).setTheme(AppThemeMode.dark);
     } else if (!Genel.darkbutton && isDarkInRiverpod) {
@@ -149,15 +217,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
 
     List<Ayarlar>? list = await Ayarlar.Ayarlari_Getir(context);
-    if (list != null) {
-      ayarlar.Ayarlari_Yukle(list);
+    if (list == null) {
+      throw Exception(
+          'Ayarlar yuklenemedi. Internetini kontrol edip tekrar dene.');
     }
+    if (list.isEmpty) {
+      throw Exception('Ayarlar su anda bos geldi. Biraz sonra tekrar dene.');
+    }
+    ayarlar.Ayarlari_Yukle(list);
 
     Genel.adUnitId = ayarlar.odulluReklamId;
 
     if (ayarlar.bakimvarmi == '1') {
       throw Exception(
-        'Sistemde bakim calismasi vardir.\nLutfen daha sonra tekrar deneyiniz.',
+        'Sunucu su anda bakimda. Lutfen daha sonra tekrar dene.',
       );
     }
   }
@@ -168,25 +241,72 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // Old path -- populates Genel.CihazId
     await Yardimci.Cihaz_Bilgi_Getir();
+    if (Genel.CihazId.trim().isEmpty) {
+      throw Exception('Cihaz bilgileri alinamadi. Lutfen tekrar dene.');
+    }
 
     // Also load user info through old path
     _updateProgress(0.6, 'Kullanici bilgileri yukleniyor...');
     if (!mounted) return;
-    await Kullanici.Kullanici_Getir(context);
+    final user = await Kullanici.Kullanici_Getir(context);
+    if (user == null) {
+      throw Exception('Kullanici bilgileri alinamadi. Lutfen tekrar dene.');
+    }
   }
 
-  /// Step 4 -- Load wallpapers (old path for now)
+  /// Step 4 -- Load wallpapers via new repository chain
   Future<void> _stepLoadWallpapers() async {
     _updateProgress(0.7, 'Resimler yukleniyor...');
     if (!mounted) return;
-    await ImageList.GetResimler(context);
+
+    final repo = ref.read(wallpaperRepositoryProvider);
+    final result = await repo.getWallpapers();
+
+    switch (result) {
+      case app_result.Success(:final data):
+        if (data.isEmpty) {
+          throw Exception(
+              'Resim listesi bos geldi. Internetini kontrol edip tekrar dene.');
+        }
+        Genel.Resimler = data
+            .map((w) => ImageList(
+                  w.id,
+                  w.path,
+                  w.categoryIds.join(';'),
+                  isPro: w.isPro,
+                ))
+            .toList();
+      case app_result.Error(:final failure):
+        throw Exception(failure.message);
+    }
   }
 
-  /// Step 5 -- Load categories (old path for now)
+  /// Step 5 -- Load categories via new repository chain
   Future<void> _stepLoadCategories() async {
     _updateProgress(0.9, 'Kategoriler yukleniyor...');
     if (!mounted) return;
-    await KategoriList.GetKategoriler(context);
+
+    final repo = ref.read(categoryRepositoryProvider);
+    final result = await repo.getCategories();
+
+    switch (result) {
+      case app_result.Success(:final data):
+        if (data.isEmpty) {
+          throw Exception(
+              'Kategori listesi bos geldi. Internetini kontrol edip tekrar dene.');
+        }
+        Genel.Kategoriler = data
+            .map(
+              (c) => KategoriList.fromJson({
+                'id': c.id,
+                'kategori': c.name,
+                'kategorI_RESMI': c.imagePath,
+              }),
+            )
+            .toList();
+      case app_result.Error(:final failure):
+        throw Exception(failure.message);
+    }
 
     // Prepare ads
     _updateProgress(0.95, 'Reklamlar hazirlaniyor...');
@@ -220,11 +340,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   void _retry() {
+    _autoRetryTimer?.cancel();
+    _autoRetryTimer = null;
     setState(() {
       _hasError = false;
       _errorMessage = '';
       _progress = 0.0;
       _currentStatus = 'Baslatiliyor...';
+      _retryCount++;
+      _isAutoRetryScheduled = false;
+      _autoRetrySeconds = 0;
     });
     HapticFeedback.lightImpact();
     _startSetup();
@@ -236,6 +361,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   void dispose() {
+    _autoRetryTimer?.cancel();
     _fadeController.dispose();
     _slideController.dispose();
     _scaleController.dispose();
@@ -283,7 +409,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             opacity: _fadeAnimation,
             child: SlideTransition(
               position: _slideAnimation,
-              child: _hasError ? _buildErrorView(isDark) : _buildLoadingView(isDark),
+              child: _hasError
+                  ? _buildErrorView(isDark)
+                  : _buildLoadingView(isDark),
             ),
           ),
         ),
@@ -497,12 +625,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             Text(
               _errorMessage,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.textTheme.bodyMedium?.color
-                    ?.withValues(alpha: 0.7),
+                color:
+                    theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
+
+            if (_isAutoRetryScheduled) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: theme.primaryColor.withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  'Otomatik tekrar: $_autoRetrySeconds sn',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
 
             const SizedBox(height: 32),
 
@@ -536,6 +686,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 ),
               ),
             ),
+
+            if (_canContinueOffline && _retryCount > 0) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _continueOffline,
+                  icon: const Icon(Icons.offline_bolt_rounded, size: 20),
+                  label: const Text('Cevrimdisi Devam Et'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.teal,
+                    backgroundColor: Colors.teal.withValues(alpha: 0.08),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: Colors.teal),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

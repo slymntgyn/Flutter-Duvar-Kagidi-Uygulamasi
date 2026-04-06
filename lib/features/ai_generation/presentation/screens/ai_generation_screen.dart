@@ -76,13 +76,16 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
 
   String _selectedStyle = 'Gercekci';
   bool _promptIsNotEmpty = false;
+  bool _isGenerateLocked = false;
+  String _generationStepText = '';
 
   // -------------------------------------------------------------------------
   // Style options
   // -------------------------------------------------------------------------
 
   static const List<_StyleOption> _styleOptions = [
-    _StyleOption(name: 'Gercekci', icon: Icons.photo_camera, color: Colors.blue),
+    _StyleOption(
+        name: 'Gercekci', icon: Icons.photo_camera, color: Colors.blue),
     _StyleOption(name: 'Anime', icon: Icons.animation, color: Colors.purple),
     _StyleOption(
         name: 'Dijital Sanat', icon: Icons.palette, color: Colors.teal),
@@ -193,58 +196,91 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
   // -------------------------------------------------------------------------
 
   Future<void> _onGenerate() async {
+    if (_isGenerateLocked) return;
     final prompt = _promptController.text.trim();
     if (prompt.isEmpty) return;
+    setState(() {
+      _isGenerateLocked = true;
+      _generationStepText = 'Hazirlaniyor...';
+    });
 
-    // Premium limit kontrolu
-    final premiumStatus = ref.read(premiumProvider);
-    if (!premiumStatus.canGenerate) {
-      HapticFeedback.mediumImpact();
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const PremiumPaywallScreen()),
-      );
-      return;
-    }
-    final limitNotifier = ref.read(dailyLimitProvider.notifier);
-
-    HapticFeedback.mediumImpact();
-
-    final request = GenerationRequest(
-      prompt: prompt,
-      style: _selectedStyle,
-      width: Genel.genislik,
-      height: Genel.yukseklik,
-    );
-
-    await ref.read(aiGenerationProvider.notifier).generate(request);
-
-    final state = ref.read(aiGenerationProvider);
-
-    if (state.generatedImageBytes != null) {
-      // Successful generation
-      await limitNotifier.increment();
-      await ref.read(premiumProvider.notifier).incrementUsage();
-      await ref
-          .read(generationHistoryProvider.notifier)
-          .addEntry(state.generatedImageBytes!);
-
-      HapticFeedback.heavyImpact();
-      _showSuccess('Duvar kagidiniz basariyla olusturuldu!');
-    } else if (state.error != null) {
-      HapticFeedback.lightImpact();
-      final err = state.error ?? '';
-      String mesaj;
-      if (err.contains('API anahtari') || err.contains('api key') || err.contains('401') || err.contains('Unauthorized')) {
-        mesaj = 'OpenAI API anahtarı geçersiz veya tanımlı değil. Lütfen yönetici ile iletişime geçin.';
-      } else if (err.contains('bağlantı') || err.contains('baglanti') || err.contains('internet') || err.contains('ConnectionError') || err.contains('SocketException')) {
-        mesaj = 'İnternet bağlantısı yok. Lütfen bağlantınızı kontrol edin.';
-      } else if (err.contains('429') || err.contains('quota') || err.contains('Rate limit')) {
-        mesaj = 'OpenAI istek limiti aşıldı. Lütfen daha sonra tekrar deneyin.';
-      } else {
-        mesaj = 'Görsel oluşturulamadı. Lütfen tekrar deneyin.';
+    try {
+      // Premium limit kontrolu
+      final premiumStatus = ref.read(premiumProvider);
+      if (!premiumStatus.canGenerate) {
+        HapticFeedback.mediumImpact();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PremiumPaywallScreen()),
+        );
+        return;
       }
-      _showError(mesaj);
+      final limitNotifier = ref.read(dailyLimitProvider.notifier);
+
+      HapticFeedback.mediumImpact();
+      if (mounted) {
+        setState(() => _generationStepText = 'AI modeli calistiriliyor...');
+      }
+
+      final request = GenerationRequest(
+        prompt: prompt,
+        style: _selectedStyle,
+        width: Genel.genislik,
+        height: Genel.yukseklik,
+      );
+
+      await ref.read(aiGenerationProvider.notifier).generate(request);
+
+      final state = ref.read(aiGenerationProvider);
+
+      if (state.generatedImageBytes != null) {
+        if (mounted) {
+          setState(() => _generationStepText = 'Gorsel kaydediliyor...');
+        }
+        // Successful generation
+        await limitNotifier.increment();
+        await ref.read(premiumProvider.notifier).incrementUsage();
+        await ref
+            .read(generationHistoryProvider.notifier)
+            .addEntry(state.generatedImageBytes!);
+
+        HapticFeedback.heavyImpact();
+        _showSuccess('Duvar kagidiniz basariyla olusturuldu!');
+      } else if (state.error != null) {
+        HapticFeedback.lightImpact();
+        final err = state.error ?? '';
+        String mesaj;
+        if (err.contains('API anahtari') ||
+            err.contains('api key') ||
+            err.contains('401') ||
+            err.contains('Unauthorized')) {
+          mesaj =
+              'OpenAI API anahtarı geçersiz veya tanımlı değil. Lütfen yönetici ile iletişime geçin.';
+        } else if (err.contains('bağlantı') ||
+            err.contains('baglanti') ||
+            err.contains('internet') ||
+            err.contains('ConnectionError') ||
+            err.contains('SocketException')) {
+          mesaj = 'İnternet bağlantısı yok. Lütfen bağlantınızı kontrol edin.';
+        } else if (err.contains('429') ||
+            err.contains('quota') ||
+            err.contains('Rate limit')) {
+          mesaj =
+              'OpenAI istek limiti aşıldı. Lütfen daha sonra tekrar deneyin.';
+        } else {
+          mesaj = 'Görsel oluşturulamadı. Lütfen tekrar deneyin.';
+        }
+        _showError(mesaj);
+      }
+    } catch (e) {
+      _showError('Gorsel olusturma sirasinda bir hata olustu: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGenerateLocked = false;
+          _generationStepText = '';
+        });
+      }
     }
   }
 
@@ -368,7 +404,7 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
 
       final result =
           await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
-        if (!mounted) return;
+      if (!mounted) return;
 
       if (result != null && result.isEmpty) {
         await Kullanici.IslemLog(
@@ -414,8 +450,7 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
       if (!mounted) return;
 
       if (asset.id.isNotEmpty) {
-        await Kullanici.IslemLog(
-            context, Genel.CihazId, 'AI Download', 0);
+        await Kullanici.IslemLog(context, Genel.CihazId, 'AI Download', 0);
         _showSuccess('AI duvar kagidi galeriye kaydedildi!');
       } else {
         _showError('Resim indirilemedi.');
@@ -607,7 +642,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
               ),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+            child:
+                const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 10),
           Text(
@@ -650,7 +686,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
+            child:
+                const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -690,7 +727,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     final limit = limitState.limit;
     final isExhausted = limitState.isExhausted;
     final statusColor = isExhausted ? Colors.red : Colors.green;
-    final progress = limit > 0 ? (limitState.used / limit).clamp(0.0, 1.0) : 0.0;
+    final progress =
+        limit > 0 ? (limitState.used / limit).clamp(0.0, 1.0) : 0.0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -925,25 +963,26 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
               hintText:
                   'Ornek: Gunesin battigi daglar manzarasi, renkli gokyuzu...',
               hintStyle: TextStyle(
-                color: theme.textTheme.bodyMedium?.color
-                    ?.withValues(alpha: 0.4),
+                color:
+                    theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.4),
                 fontSize: 14,
               ),
               filled: true,
               fillColor: theme.scaffoldBackgroundColor.withValues(alpha: 0.5),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
+                borderSide: BorderSide(
+                    color: theme.dividerColor.withValues(alpha: 0.3)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
+                borderSide: BorderSide(
+                    color: theme.dividerColor.withValues(alpha: 0.3)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF764ba2), width: 2),
+                borderSide:
+                    const BorderSide(color: Color(0xFF764ba2), width: 2),
               ),
               contentPadding: const EdgeInsets.all(14),
               suffixIcon: _promptIsNotEmpty
@@ -1043,7 +1082,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
 
   Widget _buildGenerateButton(ThemeData theme, AIGenerationState genState) {
     final isGenerating = genState.isGenerating;
-    final canGenerate = _promptIsNotEmpty && !isGenerating;
+    final canGenerate =
+        _promptIsNotEmpty && !isGenerating && !_isGenerateLocked;
 
     return SizedBox(
       width: double.infinity,
@@ -1094,8 +1134,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
           height: 20,
           child: CircularProgressIndicator(
             strokeWidth: 2.5,
-            valueColor:
-                AlwaysStoppedAnimation<Color>(Colors.white.withValues(alpha: 0.9)),
+            valueColor: AlwaysStoppedAnimation<Color>(
+                Colors.white.withValues(alpha: 0.9)),
           ),
         ),
         const SizedBox(width: 12),
@@ -1178,7 +1218,31 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
           ),
           const SizedBox(height: 16),
           if (genState.isGenerating)
-            _buildShimmerPlaceholder(theme)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildShimmerPlaceholder(theme),
+                if (_generationStepText.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.timelapse_rounded,
+                          size: 16, color: Color(0xFF764ba2)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _generationStepText,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.textTheme.bodySmall?.color
+                                ?.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            )
           else if (genState.generatedImageBytes != null)
             _buildGeneratedImageSection(theme, genState.generatedImageBytes!),
         ],
@@ -1218,7 +1282,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF764ba2).withValues(alpha: 0.12),
+                          color:
+                              const Color(0xFF764ba2).withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -1437,8 +1502,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
               Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 14,
-                color: theme.textTheme.bodyMedium?.color
-                    ?.withValues(alpha: 0.35),
+                color:
+                    theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.35),
               ),
             ],
           ),

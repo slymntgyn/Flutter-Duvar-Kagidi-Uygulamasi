@@ -49,7 +49,9 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
     });
 
     return Scaffold(
-      body: Container(
+      body: Stack(
+        children: [
+          Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
@@ -68,7 +70,8 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                 Align(
                   alignment: Alignment.topRight,
                   child: IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed:
+                        purchase.isLoading ? null : () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.close_rounded, color: Colors.white70),
                   ),
                 ),
@@ -147,7 +150,7 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                         const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          'Bugun \${premium.remainingAiGenerations} AI uretim hakkiniz kaldi',
+                          'Bugun ${premium.remainingAiGenerations} AI uretim hakkiniz kaldi',
                           style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
                         ),
                       ],
@@ -165,6 +168,7 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                       title: 'Aylik Pro',
                       price: purchase.proMonthly!.price,
                       subtitle: 'Ayda bir kez odeme',
+                      isLoading: purchase.isLoading,
                       onTap: () {
                         HapticFeedback.mediumImpact();
                         ref.read(purchaseProvider.notifier).buyMonthly();
@@ -178,6 +182,7 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                       title: 'Yillik Pro',
                       price: purchase.proYearly!.price,
                       subtitle: 'En iyi deger - %40 tasarruf',
+                      isLoading: purchase.isLoading,
                       onTap: () {
                         HapticFeedback.mediumImpact();
                         ref.read(purchaseProvider.notifier).buyYearly();
@@ -187,7 +192,9 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                 ],
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: () {
+                  onPressed: purchase.isLoading
+                      ? null
+                      : () {
                     HapticFeedback.lightImpact();
                     ref.read(purchaseProvider.notifier).restorePurchases();
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -215,7 +222,27 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
               ],
             ),
           ),
-        ),
+          ),
+          if (purchase.isLoading)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.35),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: Colors.amber),
+                      SizedBox(height: 12),
+                      Text(
+                        'Satin alma islemi suruyor...',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -227,12 +254,13 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
     required String price,
     required String subtitle,
     required VoidCallback onTap,
+    required bool isLoading,
     bool isHighlighted = false,
   }) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: onTap,
+        onPressed: isLoading ? null : onTap,
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 18),
           backgroundColor: isHighlighted
@@ -255,7 +283,7 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                 const Icon(Icons.workspace_premium_rounded, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  '\$title - \$price',
+                  '$title - $price',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -334,6 +362,8 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
               ],
             ),
           ),
+          const Icon(Icons.check_circle_rounded,
+              size: 18, color: Colors.white70),
         ],
       ),
     );

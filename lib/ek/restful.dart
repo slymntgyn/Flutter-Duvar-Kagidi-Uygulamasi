@@ -1,74 +1,86 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:senseriduvarkagidi/ek/result.dart';
 
 class Restful {
+  static Future<Result_Get> Get_Request(
+      String link, BuildContext context, String fonksyion) async {
+    Result_Get result = Result_Get();
 
-  static Future<Result_Get> Get_Request(String link,BuildContext context,String fonksyion) async {
-    Result_Get result=Result_Get();
-
-
-    print('$link/api/$fonksyion');
+    debugPrint('$link/api/$fonksyion');
     try {
       final http.Response response = await http.get(
         Uri.parse('$link/api/$fonksyion'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8'
         },
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw TimeoutException('API isteği zaman aşımına uğradı');
+        },
       );
 
-      print(">> Api Fonksiyon : "+link+ '/api/' + fonksyion+" : "+response.statusCode.toString());
-      print(">> Api Response : ${response.body}");
+      debugPrint(
+          '>> Api Fonksiyon : $link/api/$fonksyion : ${response.statusCode}');
+      debugPrint('>> Api Response : ${response.body}');
       if (response.statusCode == 200) {
-        result.sonuc=response.body.toString();
+        result.sonuc = response.body.toString();
         return result;
-      }
-      else {
+      } else {
         result.hataMesaji = response.body;
-        result.hata=true;
+        result.hata = true;
         return result;
       }
-    }
-    catch (error) {
-      print("hata : $error");
-      result.hata=true;
-      result.hataMesaji=error.toString();
+    } catch (error) {
+      debugPrint('hata : $error');
+      result.hata = true;
+      if (error is TimeoutException) {
+        result.hataMesaji = 'API isteği zaman aşımına uğradı';
+      } else {
+        result.hataMesaji = error.toString();
+      }
       return result;
     }
   }
 
-
-
-
-
-  static Future<Result_Get> Post_Request(String link,BuildContext context,String fonksyion, String body) async {
-    Result_Get result=Result_Get();
+  static Future<Result_Get> Post_Request(
+      String link, BuildContext context, String fonksyion, String body) async {
+    Result_Get result = Result_Get();
     try {
-      final http.Response response = await http.post(
-          Uri.parse('$link/api/$fonksyion'),
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8'
-          },
-          body: body
+      final http.Response response = await http
+          .post(Uri.parse('$link/api/$fonksyion'),
+              headers: <String, String>{
+                'Content-Type': 'application/json; charset=UTF-8'
+              },
+              body: body)
+          .timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw TimeoutException('API isteği zaman aşımına uğradı');
+        },
       );
-      print(">> Api Fonksiyon : $fonksyion : ${response.statusCode}");
-      print(">> Api Response : ${response.body}");
+      debugPrint('>> Api Fonksiyon : $fonksyion : ${response.statusCode}');
+      debugPrint('>> Api Response : ${response.body}');
       if (response.statusCode == 200) {
-        result.sonuc=response.body.toString();
+        result.sonuc = response.body.toString();
         return result;
-      }
-      else {
+      } else {
         result.hataMesaji = response.body;
-        result.hata=true;
+        result.hata = true;
         return result;
       }
-    }
-    catch (error) {
-      result.hata=true;
-      result.hataMesaji=error.toString();
+    } catch (error) {
+      result.hata = true;
+      if (error is TimeoutException) {
+        result.hataMesaji = 'API isteği zaman aşımına uğradı';
+      } else {
+        result.hataMesaji = error.toString();
+      }
       return result;
     }
   }
-
 }

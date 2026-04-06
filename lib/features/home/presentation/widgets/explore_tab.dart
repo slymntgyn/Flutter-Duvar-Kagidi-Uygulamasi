@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
@@ -16,12 +16,18 @@ import 'package:wallpaper_manager_plus/wallpaper_manager_plus.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
 import 'package:senseriduvarkagidi/ek/yardimci.dart';
 import 'package:senseriduvarkagidi/ek/ayarlar.dart';
+import 'package:senseriduvarkagidi/core/di/providers.dart';
+import 'package:senseriduvarkagidi/core/utils/error_message_mapper.dart';
+import 'package:senseriduvarkagidi/core/widgets/error_view.dart';
+import 'package:senseriduvarkagidi/core/widgets/loading_overlay.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
 import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
 import 'package:senseriduvarkagidi/core/widgets/wallpaper_location_dialog.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/screens/premium_paywall_screen.dart';
+import 'package:senseriduvarkagidi/features/wallpaper/domain/entities/wallpaper_image.dart';
+import 'package:senseriduvarkagidi/features/wallpaper/presentation/providers/wallpaper_provider.dart';
 import 'package:senseriduvarkagidi/features/wallpaper/presentation/screens/image_detail_screen.dart';
 
 /// Explore (Kesfet) tab — Pro UI.
@@ -44,19 +50,19 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   bool _isProcessing = false;
   bool _isWallpaperProcessing = false;
   bool _showLikeAnimation = false;
+  bool _showDoubleTapHint = true;
   bool _isFavorite = false;
+  String _processingMessage = 'Islem yapiliyor...';
+  String? _processingStep;
+  double? _downloadProgress;
 
   List<ImageList> _imageList = [];
-  final List<Widget> _imageWidgets = [];
-
-  static const int _initialLoadCount = 3;
-  static const int _loadMoreCount = 2;
+  String _imagesSignature = '';
 
   @override
   void initState() {
     super.initState();
     _initializeControllers();
-    _initializeData();
   }
 
   void _initializeControllers() {
@@ -71,13 +77,39 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     );
   }
 
-  void _initializeData() {
-    _imageList = List<ImageList>.from(Genel.Resimler);
-    _imageList.shuffle(math.Random());
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadInitialImages();
-      _updateFavoriteState();
-    });
+  List<ImageList> _toLegacyImages(List<WallpaperImage> wallpapers) {
+    return wallpapers
+        .map((w) => ImageList(
+              w.id,
+              w.path,
+              w.categoryIds.join(';'),
+              isPro: w.isPro,
+            ))
+        .toList();
+  }
+
+  String _buildSignature(List<WallpaperImage> wallpapers) {
+    return wallpapers
+        .map((w) => '${w.id}|${w.path}|${w.isPro}|${w.categoryIds.join(',')}')
+        .join('||');
+  }
+
+  void _syncImagesFromProvider(List<WallpaperImage> wallpapers) {
+    final signature = _buildSignature(wallpapers);
+    if (signature == _imagesSignature) return;
+
+    _imagesSignature = signature;
+    final mapped = _toLegacyImages(wallpapers);
+    mapped.shuffle(math.Random());
+    _imageList = mapped;
+
+    if (_currentImageIndex >= _imageList.length) {
+      _currentImageIndex = _imageList.isEmpty ? 0 : _imageList.length - 1;
+    }
+
+    _isFavorite = _imageList.isNotEmpty
+        ? Yardimci.favori_resimler_Kontrol(_imageList[_currentImageIndex].id)
+        : false;
   }
 
   @override
@@ -90,37 +122,109 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Full-screen vertical PageView
-        GestureDetector(
-          onDoubleTap: _onImageDoubleTap,
-          onTap: _navigateToDetail,
-          child: PageView.builder(
-            scrollDirection: Axis.vertical,
-            controller: _imagePageController,
-            itemCount: _imageWidgets.length,
-            onPageChanged: _onImagePageChanged,
-            itemBuilder: (context, index) => _imageWidgets[index],
+    final wallpapersAsync = ref.watch(wallpapersProvider);
+
+    return wallpapersAsync.when(
+      loading: () => const LoadingOverlay(
+        message: 'Resimler yukleniyor...',
+      ),
+      error: (error, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: ErrorView(
+            message: mapErrorMessage(error),
+            onRetry: _retryWallpapers,
           ),
         ),
+      ),
+      data: (wallpapers) {
+        _syncImagesFromProvider(wallpapers);
 
-        // Gradient info overlay (bottom)
-        _buildBottomGradientOverlay(),
+        if (_imageList.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.image_search_rounded,
+                      size: 72, color: Colors.grey[500]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Gosterilecek resim bulunamadi',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Sayfayi yenileyerek tekrar dene.',
+                    style: TextStyle(color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: _retryWallpapers,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Tekrar Dene'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
-        // Glassmorphism action pill (right side)
-        _buildGlassActionPill(),
+        return Stack(
+          children: [
+            // Full-screen vertical PageView
+            RefreshIndicator(
+              onRefresh: _retryWallpapers,
+              child: GestureDetector(
+                onDoubleTap: _onImageDoubleTap,
+                onTap: _navigateToDetail,
+                child: PageView.builder(
+                  scrollDirection: Axis.vertical,
+                  controller: _imagePageController,
+                  itemCount: _imageList.length,
+                  onPageChanged: _onImagePageChanged,
+                  itemBuilder: (context, index) =>
+                      _buildImageWidget(_imageList[index]),
+                ),
+              ),
+            ),
 
-        // Vertical page indicator (right edge)
-        _buildPageIndicator(),
+            // Gradient info overlay (bottom)
+            _buildBottomGradientOverlay(),
 
-        // Lottie like animation
-        if (_showLikeAnimation) _buildLikeAnimation(),
+            // Glassmorphism action pill (right side)
+            _buildGlassActionPill(),
 
-        // Processing overlay
-        if (_isProcessing) _buildProcessingOverlay(),
-      ],
+            // Vertical page indicator (right edge)
+            _buildPageIndicator(),
+
+            // Page count indicator
+            _buildPageCountIndicator(),
+
+            // UX helper for discoverability
+            if (_showDoubleTapHint) _buildDoubleTapHint(),
+
+            // Lottie like animation
+            if (_showLikeAnimation) _buildLikeAnimation(),
+
+            // Processing overlay
+            if (_isProcessing) _buildProcessingOverlay(),
+          ],
+        );
+      },
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Recovery
+  // ---------------------------------------------------------------------------
+
+  Future<void> _retryWallpapers() async {
+    ref.invalidate(wallpapersProvider);
+    await ref.read(wallpapersProvider.future);
   }
 
   // ---------------------------------------------------------------------------
@@ -158,7 +262,8 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
                 if (image.kategori.isNotEmpty)
                   Container(
                     margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
@@ -167,18 +272,20 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
                     ),
                     child: Text(
                       'Kategori ${image.kategori}',
-                      style: const TextStyle(
-                          color: Colors.white70, fontSize: 11),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ),
                 Row(
                   children: [
-                    const Icon(Icons.hd_rounded, color: Colors.white70, size: 16),
+                    const Icon(Icons.hd_rounded,
+                        color: Colors.white70, size: 16),
                     const SizedBox(width: 4),
                     const Text('4K HD',
                         style: TextStyle(color: Colors.white70, fontSize: 12)),
                     const SizedBox(width: 12),
-                    Icon(Icons.touch_app_rounded, color: Colors.white.withValues(alpha: 0.5), size: 14),
+                    Icon(Icons.touch_app_rounded,
+                        color: Colors.white.withValues(alpha: 0.5), size: 14),
                     const SizedBox(width: 4),
                     Text('Detay icin dokun',
                         style: TextStyle(
@@ -219,9 +326,13 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildPillButton(
-                  icon: _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  icon: _isFavorite
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
                   label: 'Begen',
                   color: _isFavorite ? Colors.red : Colors.white,
+                  semanticLabel:
+                      _isFavorite ? 'Favorilerden cikar' : 'Favorilere ekle',
                   onPressed: _toggleFavorite,
                 ),
                 const SizedBox(height: 12),
@@ -229,6 +340,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
                   icon: Icons.wallpaper_rounded,
                   label: 'Duvar\nKagidi',
                   color: Colors.blue,
+                  semanticLabel: 'Duvar kagidi yap',
                   onPressed: _setWallpaperWithConfirmation,
                 ),
                 const SizedBox(height: 12),
@@ -236,6 +348,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
                   icon: Icons.download_rounded,
                   label: 'Indir',
                   color: Colors.green,
+                  semanticLabel: 'Resmi indir',
                   onPressed: _downloadImage,
                 ),
               ],
@@ -250,6 +363,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     required IconData icon,
     required String label,
     required Color color,
+    required String semanticLabel,
     required VoidCallback onPressed,
   }) {
     return InkWell(
@@ -261,24 +375,31 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
         onPressed();
       },
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                height: 1.1,
-              ),
-              textAlign: TextAlign.center,
+      child: Semantics(
+        button: true,
+        label: semanticLabel,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 60, minHeight: 60),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color, size: 28),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -289,7 +410,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   // ---------------------------------------------------------------------------
   Widget _buildPageIndicator() {
     if (_imageList.isEmpty) return const SizedBox.shrink();
-    final total = math.min(_imageWidgets.length, 8);
+    final total = math.min(_imageList.length, 8);
     return Positioned(
       right: 6,
       top: 0,
@@ -310,11 +431,75 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
                     : Colors.white.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(3),
                 boxShadow: isActive
-                    ? [BoxShadow(color: Colors.white.withValues(alpha: 0.5), blurRadius: 6)]
+                    ? [
+                        BoxShadow(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            blurRadius: 6)
+                      ]
                     : null,
               ),
             );
           }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageCountIndicator() {
+    if (_imageList.isEmpty) return const SizedBox.shrink();
+    final current = _currentImageIndex + 1;
+    final total = _imageList.length;
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 12,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        ),
+        child: Text(
+          '$current/$total',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDoubleTapHint() {
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 70,
+      child: Center(
+        child: InkWell(
+          onTap: () => setState(() => _showDoubleTapHint = false),
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.favorite_border_rounded,
+                    color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'Favoriye eklemek icin cift dokun',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -346,62 +531,20 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   // Processing overlay
   // ---------------------------------------------------------------------------
   Widget _buildProcessingOverlay() {
-    return Container(
-      color: Colors.black54,
-      child: Center(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
-                  Text('Islem yapiliyor...',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return LoadingOverlay(
+      message: _processingMessage,
+      stepLabel: _processingStep,
+      progress: _downloadProgress,
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Image building & lazy loading
+  // Image building
   // ---------------------------------------------------------------------------
-  void _loadInitialImages() {
-    _imageWidgets.clear();
-    final int loadCount = math.min(_initialLoadCount, _imageList.length);
-    for (int i = 0; i < loadCount; i++) {
-      _imageWidgets.add(_buildImageWidget(_imageList[i]));
-    }
-    if (mounted) setState(() {});
-  }
-
-  void _loadMoreImages() {
-    final int currentLength = _imageWidgets.length;
-    final int remaining = _imageList.length - currentLength;
-    final int loadCount = math.min(_loadMoreCount, remaining);
-    if (loadCount > 0) {
-      for (int i = 0; i < loadCount; i++) {
-        _imageWidgets.add(_buildImageWidget(_imageList[currentLength + i]));
-      }
-      if (mounted) setState(() {});
-    }
-  }
-
   Widget _buildImageWidget(ImageList imageData) {
     final premium = ref.read(premiumProvider);
     final isLocked = imageData.isPro && !premium.isPro;
+    final imageUrl = ayarlar.buildImageUrl(imageData.yol);
 
     return SizedBox(
       width: double.infinity,
@@ -411,37 +554,53 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
         children: [
           Hero(
             tag: 'explore_${imageData.id}',
-            child: CachedNetworkImage(
-              imageUrl: '${ayarlar.resimsunucusu}${imageData.yol}',
-              fit: BoxFit.cover,
-              memCacheWidth: 800,
-              memCacheHeight: 1200,
-              placeholder: (context, url) => Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.grey[850]!, Colors.grey[900]!],
+            child: imageUrl.isEmpty
+                ? Container(
+                    color: Colors.grey[900],
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.image_not_supported_outlined,
+                            size: 48, color: Colors.grey[600]),
+                        const SizedBox(height: 8),
+                        Text('Resim URL bos',
+                            style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                  )
+                : CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 800,
+                    memCacheHeight: 1200,
+                    placeholder: (context, url) => Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.grey[850]!, Colors.grey[900]!],
+                        ),
+                      ),
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white38)),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey[900],
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 48, color: Colors.grey[600]),
+                          const SizedBox(height: 8),
+                          Text('Resim yuklenemedi',
+                              style: TextStyle(color: Colors.grey[600])),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white38)),
-                ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: Colors.grey[900],
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: Colors.grey[600]),
-                    const SizedBox(height: 8),
-                    Text('Resim yuklenemedi',
-                        style: TextStyle(color: Colors.grey[600])),
-                  ],
-                ),
-              ),
-            ),
           ),
           // Pro kilit overlay
           if (isLocked) _buildProLockOverlay(),
@@ -534,16 +693,20 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   // Page change & state updates
   // ---------------------------------------------------------------------------
   void _onImagePageChanged(int index) {
-    setState(() => _currentImageIndex = index);
+    setState(() {
+      _currentImageIndex = index;
+      if (_showDoubleTapHint && index > 0) {
+        _showDoubleTapHint = false;
+      }
+    });
     _updateFavoriteState();
-    if (index >= _imageWidgets.length - 1) _loadMoreImages();
   }
 
   void _updateFavoriteState() {
     if (_currentImageIndex < _imageList.length) {
       setState(() {
-        _isFavorite = Yardimci.favori_resimler_Kontrol(
-            _imageList[_currentImageIndex].id);
+        _isFavorite =
+            Yardimci.favori_resimler_Kontrol(_imageList[_currentImageIndex].id);
       });
     }
   }
@@ -667,17 +830,25 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
       setState(() {
         _isWallpaperProcessing = true;
         _isProcessing = true;
+        _processingMessage = 'Duvar kagidi ayarlaniyor...';
+        _processingStep = 'Resim hazirlaniyor';
+        _downloadProgress = null;
       });
-      final url = '${ayarlar.resimsunucusu}${imageData.yol}';
+      final url = ayarlar.buildImageUrl(imageData.yol);
       final file = await DefaultCacheManager().getSingleFile(url);
+      if (mounted) {
+        setState(() {
+          _processingStep = 'Cihaza uygulaniyor';
+        });
+      }
       final result =
           await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
       if (!mounted) return;
       if (result == 'Wallpaper set successfully' ||
           (result ?? '').contains('success')) {
         try {
-          await Kullanici.IslemLog(context, Genel.CihazId,
-              'Duvar Kagidi Yapma', imageData.id);
+          await Kullanici.IslemLog(
+              context, Genel.CihazId, 'Duvar Kagidi Yapma', imageData.id);
         } catch (_) {}
         _showSuccessAlert('Duvar kagidi basariyla ayarlandi!');
       } else {
@@ -690,6 +861,9 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
         setState(() {
           _isWallpaperProcessing = false;
           _isProcessing = false;
+          _processingMessage = 'Islem yapiliyor...';
+          _processingStep = null;
+          _downloadProgress = null;
         });
       }
     }
@@ -727,12 +901,27 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
 
   Future<void> _download(ImageList imageData) async {
     try {
-      setState(() => _isProcessing = true);
-      final imageUrl = '${ayarlar.resimsunucusu}${imageData.yol}';
+      setState(() {
+        _isProcessing = true;
+        _processingMessage = 'Resim indiriliyor...';
+        _processingStep = 'Dosya indiriliyor';
+        _downloadProgress = null;
+      });
+      final imageUrl = ayarlar.buildImageUrl(imageData.yol);
       final now = DateTime.now();
-      final response = await Dio()
-          .get(imageUrl, options: Options(responseType: ResponseType.bytes));
-      final imageBytes = Uint8List.fromList(response.data);
+      final response = await ref.read(dioClientProvider).externalGet<List<int>>(
+        imageUrl,
+        responseType: ResponseType.bytes,
+        onReceiveProgress: (received, total) {
+          if (!mounted || total <= 0) return;
+          setState(() {
+            _downloadProgress = received / total;
+            _processingStep = 'Galeriye kaydetmeye hazirlaniyor';
+          });
+        },
+      );
+      final List<int> downloadedBytes = response.data ?? <int>[];
+      final imageBytes = Uint8List.fromList(downloadedBytes);
       final ps = await PhotoManager.requestPermissionExtend();
       if (!ps.isAuth && ps != PermissionState.limited) {
         _showErrorAlert('Galeriyi kaydetmek icin izin verilmedi.');
@@ -754,7 +943,14 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     } catch (e) {
       _showErrorAlert('Bir hata olustu: ${e.toString()}');
     } finally {
-      if (mounted) setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _processingMessage = 'Islem yapiliyor...';
+          _processingStep = null;
+          _downloadProgress = null;
+        });
+      }
     }
   }
 

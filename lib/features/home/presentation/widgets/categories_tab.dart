@@ -7,9 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
-import 'package:senseriduvarkagidi/ek/genel.dart';
 import 'package:senseriduvarkagidi/ek/ayarlar.dart';
+import 'package:senseriduvarkagidi/core/utils/error_message_mapper.dart';
+import 'package:senseriduvarkagidi/core/widgets/error_view.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
+import 'package:senseriduvarkagidi/features/wallpaper/domain/entities/category.dart';
+import 'package:senseriduvarkagidi/features/wallpaper/presentation/providers/category_provider.dart';
 import 'package:senseriduvarkagidi/features/wallpaper/presentation/screens/category_images_screen.dart';
 
 /// Kategoriler tab — Pro UI.
@@ -29,9 +32,9 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
 
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  Timer? _searchDebounce;
 
   String _searchQuery = '';
-  List<KategoriList> _filteredCategories = [];
 
   @override
   void initState() {
@@ -45,58 +48,84 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
       curve: Curves.easeInOut,
     );
     _searchController.addListener(_onSearchChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadCategories();
-    });
   }
 
   @override
   void dispose() {
     _headerGradientController.dispose();
+    _searchDebounce?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _loadCategories() {
-    if (!mounted) return;
-    setState(() {
-      _filteredCategories = List.from(Genel.Kategoriler);
-    });
+  List<KategoriList> _toLegacyCategories(List<Category> categories) {
+    return categories
+        .map(
+          (c) => KategoriList.fromJson({
+            'id': c.id,
+            'kategori': c.name,
+            'kategorI_RESMI': c.imagePath,
+          }),
+        )
+        .toList();
   }
 
   void _onSearchChanged() {
-    final q = _searchController.text.toLowerCase();
-    setState(() {
-      _searchQuery = q;
-      _filteredCategories = Genel.Kategoriler
-          .where((cat) => cat.kategori.toLowerCase().contains(q))
-          .toList();
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase().trim();
+      });
     });
   }
 
   Future<void> _onRefresh() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    _loadCategories();
+    ref.invalidate(categoriesProvider);
+    await ref.read(categoriesProvider.future);
   }
 
   @override
   Widget build(BuildContext context) {
+    final categoriesAsync = ref.watch(categoriesProvider);
+    final allCategories = categoriesAsync.maybeWhen(
+      data: _toLegacyCategories,
+      orElse: () => <KategoriList>[],
+    );
+    final filteredCategories = _searchQuery.isEmpty
+        ? allCategories
+        : allCategories
+            .where((cat) => cat.kategori.toLowerCase().contains(_searchQuery))
+            .toList();
+
     return RefreshIndicator(
       onRefresh: _onRefresh,
       child: CustomScrollView(
         controller: _scrollController,
         slivers: [
           // Gradient hero header + search bar (pinned)
-          _buildSliverAppBar(),
+          _buildSliverAppBar(allCategories.length),
           // Categories grid
-          _filteredCategories.isEmpty
-              ? _searchQuery.isNotEmpty
-                  ? SliverFillRemaining(child: _buildNotFound())
-                  : SliverFillRemaining(child: _buildLoadingPlaceholder())
-              : _buildCategoryGrid(),
+          categoriesAsync.when(
+            loading: () => SliverFillRemaining(
+              hasScrollBody: false,
+              child: _buildLoadingPlaceholder(),
+            ),
+            error: (error, _) => SliverFillRemaining(
+              hasScrollBody: false,
+              child: _buildErrorState(error, _onRefresh),
+            ),
+            data: (_) => filteredCategories.isEmpty
+                ? SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _searchQuery.isNotEmpty
+                        ? _buildNotFound()
+                        : _buildEmptyState(),
+                  )
+                : _buildCategoryGrid(filteredCategories),
+          ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
         ],
       ),
@@ -106,12 +135,13 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
   // ---------------------------------------------------------------------------
   // Sliver AppBar with gradient + search
   // ---------------------------------------------------------------------------
-  Widget _buildSliverAppBar() {
+  Widget _buildSliverAppBar(int totalCount) {
     return SliverPersistentHeader(
       pinned: true,
       delegate: _SearchHeaderDelegate(
         headerGradientAnimation: _headerGradientAnimation,
         searchController: _searchController,
+        totalCount: totalCount,
       ),
     );
   }
@@ -119,16 +149,16 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
   // ---------------------------------------------------------------------------
   // Masonry category grid
   // ---------------------------------------------------------------------------
-  Widget _buildCategoryGrid() {
+  Widget _buildCategoryGrid(List<KategoriList> categories) {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       sliver: SliverMasonryGrid.count(
         crossAxisCount: 2,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childCount: _filteredCategories.length,
+        childCount: categories.length,
         itemBuilder: (context, index) =>
-            _buildCategoryCard(_filteredCategories[index], index),
+            _buildCategoryCard(categories[index], index),
       ),
     );
   }
@@ -148,8 +178,8 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
             transitionsBuilder: (ctx, anim, secAnim, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
-              final tween =
-                  Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.ease));
+              final tween = Tween(begin: begin, end: end)
+                  .chain(CurveTween(curve: Curves.ease));
               return SlideTransition(position: anim.drive(tween), child: child);
             },
           ),
@@ -174,10 +204,9 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
             children: [
               // Background image
               CachedNetworkImage(
-                imageUrl:
-                    '${ayarlar.resimsunucusu}${category.kategorI_RESMI}',
+                imageUrl: ayarlar.buildImageUrl(category.kategorI_RESMI),
                 fit: BoxFit.cover,
-                placeholder: (context, url) => _ShimmerBox(),
+                placeholder: (context, url) => const _ShimmerBox(),
                 errorWidget: (context, url, error) => Container(
                   color: Colors.grey[300],
                   child: const Icon(Icons.broken_image_outlined),
@@ -204,11 +233,13 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
                 left: 0,
                 right: 0,
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(20)),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.25),
                         border: Border(
@@ -273,18 +304,70 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
 
   Widget _buildNotFound() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            '"$_searchQuery" icin sonuc bulunamadi',
-            style: TextStyle(color: Colors.grey[500]),
-            textAlign: TextAlign.center,
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off_rounded, size: 72, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              '"$_searchQuery" icin sonuc bulunamadi',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Baska bir kelime dene ya da aramayi temizle.',
+              style: TextStyle(color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () {
+                _searchController.clear();
+              },
+              icon: const Icon(Icons.clear_rounded),
+              label: const Text('Aramayi Temizle'),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.category_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Gosterilecek kategori bulunamadi',
+              style: TextStyle(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Biraz sonra tekrar dene ya da sayfayi yenile.',
+              style: TextStyle(color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object error, Future<void> Function() onRetry) {
+    return ErrorView(
+      message: mapErrorMessage(error),
+      onRetry: () async {
+        await onRetry();
+      },
     );
   }
 }
@@ -295,10 +378,12 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
 class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Animation<double> headerGradientAnimation;
   final TextEditingController searchController;
+  final int totalCount;
 
   _SearchHeaderDelegate({
     required this.headerGradientAnimation,
     required this.searchController,
+    required this.totalCount,
   });
 
   @override
@@ -317,9 +402,9 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
           end: Alignment.bottomRight,
           colors: [
             Color.lerp(const Color(0xFF667eea), const Color(0xFF764ba2),
-                    headerGradientAnimation.value)!,
+                headerGradientAnimation.value)!,
             Color.lerp(const Color(0xFF764ba2), const Color(0xFFf093fb),
-                    headerGradientAnimation.value)!,
+                headerGradientAnimation.value)!,
           ],
         ),
         borderRadius: BorderRadius.only(
@@ -344,13 +429,16 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
                         children: [
                           Text(
                             'Kategoriler',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                 ),
                           ),
                           Text(
-                            '${Genel.Kategoriler.length} kategori',
+                            '$totalCount kategori',
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.8),
                               fontSize: 14,
@@ -375,8 +463,8 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Kategori ara...',
-                      hintStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6)),
+                      hintStyle:
+                          TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                       prefixIcon: Icon(Icons.search_rounded,
                           color: Colors.white.withValues(alpha: 0.8)),
                       suffixIcon: searchController.text.isNotEmpty
@@ -402,8 +490,7 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
                         borderRadius: BorderRadius.circular(16),
                         borderSide: const BorderSide(color: Colors.white),
                       ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
@@ -423,6 +510,8 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
 // Shimmer placeholder
 // ---------------------------------------------------------------------------
 class _ShimmerBox extends StatefulWidget {
+  const _ShimmerBox();
+
   @override
   State<_ShimmerBox> createState() => _ShimmerBoxState();
 }

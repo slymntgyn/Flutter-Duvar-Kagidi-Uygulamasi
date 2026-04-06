@@ -154,49 +154,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return AnimatedBuilder(
       animation: _fabGlowAnimation,
       builder: (context, child) {
-        return Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF667eea)
-                    .withValues(alpha: _fabGlowAnimation.value * 0.5),
-                blurRadius: 20 * _fabGlowAnimation.value,
-                spreadRadius: 4 * _fabGlowAnimation.value,
-              ),
-              BoxShadow(
-                color: const Color(0xFF764ba2)
-                    .withValues(alpha: _fabGlowAnimation.value * 0.3),
-                blurRadius: 30 * _fabGlowAnimation.value,
-                spreadRadius: 2 * _fabGlowAnimation.value,
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _openAIGeneration,
-              borderRadius: BorderRadius.circular(32),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                  ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
+        return Tooltip(
+          message: 'AI Duvar Kagidi Olustur',
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF667eea)
+                      .withValues(alpha: _fabGlowAnimation.value * 0.5),
+                  blurRadius: 20 * _fabGlowAnimation.value,
+                  spreadRadius: 4 * _fabGlowAnimation.value,
                 ),
-                child: const Center(
-                  child: Icon(
-                    Icons.auto_awesome_rounded,
-                    color: Colors.white,
-                    size: 28,
+                BoxShadow(
+                  color: const Color(0xFF764ba2)
+                      .withValues(alpha: _fabGlowAnimation.value * 0.3),
+                  blurRadius: 30 * _fabGlowAnimation.value,
+                  spreadRadius: 2 * _fabGlowAnimation.value,
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _openAIGeneration,
+                borderRadius: BorderRadius.circular(32),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                 ),
               ),

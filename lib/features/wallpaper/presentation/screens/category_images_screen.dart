@@ -30,6 +30,7 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
     with SingleTickerProviderStateMixin {
   List<ImageList> _images = [];
   _SortOption _sortOption = _SortOption.shuffle;
+  bool _isInitialLoading = true;
 
   late final AnimationController _headerAnimController;
 
@@ -51,13 +52,12 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
   }
 
   void _loadImages() {
-    final filtered = Genel.Resimler
-        .where((img) =>
-            img.kategori == widget.category.id.toString())
-        .toList();
+    final filtered = Genel.Resimler.where(
+        (img) => img.kategori == widget.category.id.toString()).toList();
 
     // If no match by ID, show all (fallback)
-    final list = filtered.isNotEmpty ? filtered : List<ImageList>.from(Genel.Resimler);
+    final list =
+        filtered.isNotEmpty ? filtered : List<ImageList>.from(Genel.Resimler);
 
     switch (_sortOption) {
       case _SortOption.shuffle:
@@ -71,7 +71,10 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
         break;
     }
 
-    setState(() => _images = list);
+    setState(() {
+      _images = list;
+      _isInitialLoading = false;
+    });
   }
 
   Future<void> _refresh() async {
@@ -97,7 +100,9 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.9),
+            color: Theme.of(context)
+                .scaffoldBackgroundColor
+                .withValues(alpha: 0.9),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
@@ -120,9 +125,12 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              _sortTile(ctx, Icons.shuffle_rounded, 'Karistir', _SortOption.shuffle),
-              _sortTile(ctx, Icons.arrow_upward_rounded, 'Eskiden Yeniye', _SortOption.idAsc),
-              _sortTile(ctx, Icons.arrow_downward_rounded, 'Yeniden Eskiye', _SortOption.idDesc),
+              _sortTile(
+                  ctx, Icons.shuffle_rounded, 'Karistir', _SortOption.shuffle),
+              _sortTile(ctx, Icons.arrow_upward_rounded, 'Eskiden Yeniye',
+                  _SortOption.idAsc),
+              _sortTile(ctx, Icons.arrow_downward_rounded, 'Yeniden Eskiye',
+                  _SortOption.idDesc),
               const SizedBox(height: 16),
             ],
           ),
@@ -131,9 +139,12 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
     );
   }
 
-  Widget _sortTile(BuildContext ctx, IconData icon, String label, _SortOption opt) {
+  Widget _sortTile(
+      BuildContext ctx, IconData icon, String label, _SortOption opt) {
     final isSelected = _sortOption == opt;
     return ListTile(
+      tileColor: isSelected ? Colors.teal.withValues(alpha: 0.12) : null,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       leading: Icon(icon, color: isSelected ? Colors.teal : null),
       title: Text(
         label,
@@ -142,7 +153,9 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
-      trailing: isSelected ? const Icon(Icons.check_rounded, color: Colors.teal) : null,
+      trailing: isSelected
+          ? const Icon(Icons.check_rounded, color: Colors.teal)
+          : null,
       onTap: () {
         setState(() => _sortOption = opt);
         Navigator.pop(ctx);
@@ -202,7 +215,8 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
             color: Colors.white,
             fontWeight: FontWeight.bold,
             shadows: [
-              Shadow(offset: Offset(1, 1), blurRadius: 4, color: Colors.black54),
+              Shadow(
+                  offset: Offset(1, 1), blurRadius: 4, color: Colors.black54),
             ],
           ),
         ),
@@ -217,29 +231,36 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
   }
 
   Widget _buildHeroBackground() {
+    final categoryCoverUrl =
+        ayarlar.buildImageUrl(widget.category.kategorI_RESMI);
     return Stack(
       fit: StackFit.expand,
       children: [
         // Category cover image
-        CachedNetworkImage(
-          imageUrl:
-              '${ayarlar.resimsunucusu}${widget.category.kategorI_RESMI}',
-          fit: BoxFit.cover,
-          placeholder: (context, url) => Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.grey[800]!, Colors.grey[900]!],
+        categoryCoverUrl.isEmpty
+            ? Container(
+                color: Colors.grey[800],
+                child: const Icon(Icons.image_not_supported_outlined,
+                    color: Colors.white38, size: 48),
+              )
+            : CachedNetworkImage(
+                imageUrl: categoryCoverUrl,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.grey[800]!, Colors.grey[900]!],
+                    ),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[800],
+                  child: const Icon(Icons.broken_image_outlined,
+                      color: Colors.white38, size: 48),
+                ),
               ),
-            ),
-          ),
-          errorWidget: (context, url, error) => Container(
-            color: Colors.grey[800],
-            child: const Icon(Icons.broken_image_outlined,
-                color: Colors.white38, size: 48),
-          ),
-        ),
 
         // Gradient overlay
         Container(
@@ -291,6 +312,23 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildImageGrid() {
+    if (_isInitialLoading) {
+      return SliverPadding(
+        padding: const EdgeInsets.all(12),
+        sliver: SliverMasonryGrid.count(
+          crossAxisCount: 2,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childCount: 8,
+          itemBuilder: (context, index) {
+            final isLong = index % 3 == 0;
+            final height = isLong ? 260.0 : 200.0;
+            return SizedBox(height: height, child: _buildShimmerPlaceholder());
+          },
+        ),
+      );
+    }
+
     if (_images.isEmpty) {
       return SliverFillRemaining(
         child: _buildEmptyState(),
@@ -304,8 +342,7 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
         childCount: _images.length,
-        itemBuilder: (context, index) =>
-            _buildImageCard(_images[index], index),
+        itemBuilder: (context, index) => _buildImageCard(_images[index], index),
       ),
     );
   }
@@ -315,6 +352,7 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
     final isLong = index % 3 == 0;
     final height = isLong ? 260.0 : 200.0;
     final heroTag = 'category_${image.id}_$index';
+    final imageUrl = ayarlar.buildImageUrl(image.yol);
 
     return GestureDetector(
       onTap: () {
@@ -351,15 +389,21 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
             child: Stack(
               fit: StackFit.expand,
               children: [
-                CachedNetworkImage(
-                  imageUrl: '${ayarlar.resimsunucusu}${image.yol}',
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => _buildShimmerPlaceholder(),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.error_outline),
-                  ),
-                ),
+                imageUrl.isEmpty
+                    ? Container(
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image_not_supported_outlined),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            _buildShimmerPlaceholder(),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.error_outline),
+                        ),
+                      ),
 
                 // Gradient overlay at bottom
                 Positioned(
@@ -392,8 +436,8 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
                           ),
                           child: const Text(
                             '4K',
-                            style: TextStyle(
-                                color: Colors.white70, fontSize: 10),
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 10),
                           ),
                         ),
                         Icon(
@@ -419,17 +463,33 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.image_not_supported_outlined,
-              size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'Bu kategoride resim bulunamadi',
-            style: TextStyle(color: Colors.grey[500], fontSize: 16),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_not_supported_outlined,
+                size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Bu kategoride resim bulunamadi',
+              style: TextStyle(color: Colors.grey[500], fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Sayfayi yenileyip tekrar dene.',
+              style: TextStyle(color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _loadImages,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Yenile'),
+            ),
+          ],
+        ),
       ),
     );
   }

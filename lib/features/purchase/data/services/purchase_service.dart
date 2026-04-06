@@ -8,13 +8,15 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 class PurchaseProducts {
   PurchaseProducts._();
 
-  /// Aylik Pro abonelik ID'si (Android: Google Play, iOS: App Store).
-  static String get proMonthly =>
-      Platform.isIOS ? 'com.senseriduvarkagidi.pro_monthly' : 'senseriduvarkagidi_pro_monthly';
+  // Subscription product IDs
+  static String get proMonthly => Platform.isIOS
+      ? 'com.senseriduvarkagidi.pro_monthly'
+      : 'senseriduvarkagidi_pro_monthly';
 
   /// Yillik Pro abonelik ID'si.
-  static String get proYearly =>
-      Platform.isIOS ? 'com.senseriduvarkagidi.pro_yearly' : 'senseriduvarkagidi_pro_yearly';
+  static String get proYearly => Platform.isIOS
+      ? 'com.senseriduvarkagidi.pro_yearly'
+      : 'senseriduvarkagidi_pro_yearly';
 
   static Set<String> get all => {proMonthly, proYearly};
 }
@@ -30,16 +32,14 @@ class PurchaseService {
   List<ProductDetails> _products = [];
 
   /// Satin alma stream'i - null: henuz yuklenmedi.
-  Stream<List<PurchaseDetails>> get purchaseStream =>
-      _iap.purchaseStream;
+  Stream<List<PurchaseDetails>> get purchaseStream => _iap.purchaseStream;
 
   bool get isAvailable => _products.isNotEmpty;
   List<ProductDetails> get products => List.unmodifiable(_products);
 
   ProductDetails? get proMonthly {
     try {
-      return _products.firstWhere(
-          (p) => p.id == PurchaseProducts.proMonthly);
+      return _products.firstWhere((p) => p.id == PurchaseProducts.proMonthly);
     } catch (_) {
       return null;
     }
@@ -47,8 +47,7 @@ class PurchaseService {
 
   ProductDetails? get proYearly {
     try {
-      return _products.firstWhere(
-          (p) => p.id == PurchaseProducts.proYearly);
+      return _products.firstWhere((p) => p.id == PurchaseProducts.proYearly);
     } catch (_) {
       return null;
     }
@@ -69,7 +68,7 @@ class PurchaseService {
 
   /// Urun satin al.
   Future<void> buy(ProductDetails product) async {
-    final purchaseParam = PurchaseParam(productDetails: product);
+    final PurchaseParam purchaseParam = PurchaseParam(productDetails: product);
 
     if (product.id == PurchaseProducts.proMonthly ||
         product.id == PurchaseProducts.proYearly) {

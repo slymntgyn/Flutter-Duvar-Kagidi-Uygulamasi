@@ -11,6 +11,23 @@ import 'package:senseriduvarkagidi/features/premium/presentation/screens/premium
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  void _applyTheme(
+    BuildContext context,
+    WidgetRef ref,
+    AppThemeMode mode,
+    String label,
+  ) {
+    ref.read(themeProvider.notifier).setTheme(mode);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label aktif edildi'),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -30,21 +47,22 @@ class SettingsScreen extends ConsumerWidget {
         label: 'Acik Tema',
         icon: Icons.light_mode_rounded,
         isSelected: currentTheme == AppThemeMode.light,
-        onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeMode.light),
+        onTap: () => _applyTheme(context, ref, AppThemeMode.light, 'Acik tema'),
       ),
       const SizedBox(height: 8),
       _ThemeOptionTile(
         label: 'Koyu Tema',
         icon: Icons.dark_mode_rounded,
         isSelected: currentTheme == AppThemeMode.dark,
-        onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeMode.dark),
+        onTap: () => _applyTheme(context, ref, AppThemeMode.dark, 'Koyu tema'),
       ),
       const SizedBox(height: 8),
       _ThemeOptionTile(
         label: 'AMOLED (Saf Siyah)',
         icon: Icons.phone_android_rounded,
         isSelected: currentTheme == AppThemeMode.amoled,
-        onTap: () => ref.read(themeProvider.notifier).setTheme(AppThemeMode.amoled),
+        onTap: () =>
+            _applyTheme(context, ref, AppThemeMode.amoled, 'AMOLED tema'),
       ),
       const SizedBox(height: 24),
 
@@ -304,8 +322,7 @@ class _ThemeOptionTile extends StatelessWidget {
               child: Text(
                 label,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   color: isSelected
                       ? theme.colorScheme.primary
                       : theme.colorScheme.onSurface,

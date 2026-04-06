@@ -2,12 +2,13 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:senseriduvarkagidi/core/constants/api_constants.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 class Genel{
-  //Canlı
-    static String web_api_link="https://test.suleymanturan.com";
+  // Tum legacy HTTP cagrilari ApiConstants.baseUrl uzerinden tek kaynaktan beslenir.
+  static String get web_api_link => ApiConstants.baseUrl;
 
   static Color renk_kirmizi=Colors.white;
 

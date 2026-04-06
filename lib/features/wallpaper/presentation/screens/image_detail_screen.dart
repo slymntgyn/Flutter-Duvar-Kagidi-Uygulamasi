@@ -1,8 +1,8 @@
-import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:senseriduvarkagidi/core/di/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -18,6 +18,7 @@ import 'package:senseriduvarkagidi/ek/yardimci.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
 import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
 import 'package:senseriduvarkagidi/core/widgets/wallpaper_location_dialog.dart';
+import 'package:senseriduvarkagidi/core/widgets/loading_overlay.dart';
 
 /// Duvar kagidi detay ekrani.
 /// Hero animasyonu, pinch-to-zoom, DraggableScrollableSheet aksiyon paneli.
@@ -40,6 +41,9 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   bool _isFavorite = false;
   bool _isProcessing = false;
   bool _isWallpaperProcessing = false;
+  String _processingMessage = 'Islem yapiliyor...';
+  String? _processingStep;
+  double? _downloadProgress;
 
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
@@ -48,6 +52,8 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
       DraggableScrollableController();
 
   List<ImageList> _similarImages = [];
+  final ScrollController _similarScrollController = ScrollController();
+  final int _similarLeadIndex = 1;
 
   @override
   void initState() {
@@ -62,6 +68,13 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
     );
     _fadeController.forward();
     _isFavorite = Yardimci.favori_resimler_Kontrol(widget.image.id);
+    _similarScrollController.addListener(() {
+      final index = ((_similarScrollController.offset / 98).round() + 1)
+          .clamp(1, _similarImages.isEmpty ? 1 : _similarImages.length);
+      if (mounted && index != _similarLeadIndex) {
+        setState(() => _similarLeadIndex = index);
+      }
+    });
     _loadSimilarImages();
   }
 
@@ -69,12 +82,12 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   void dispose() {
     _fadeController.dispose();
     _sheetController.dispose();
+    _similarScrollController.dispose();
     super.dispose();
   }
 
   void _loadSimilarImages() {
-    final similar = Genel.Resimler
-        .where((img) =>
+    final similar = Genel.Resimler.where((img) =>
             img.kategori == widget.image.kategori && img.id != widget.image.id)
         .take(10)
         .toList();
@@ -113,6 +126,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildZoomableImage() {
+    final imageUrl = ayarlar.buildImageUrl(widget.image.yol);
     return FadeTransition(
       opacity: _fadeAnimation,
       child: InteractiveViewer(
@@ -120,19 +134,22 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
         maxScale: 4.0,
         child: Hero(
           tag: widget.heroTag,
-          child: CachedNetworkImage(
-            imageUrl: '${ayarlar.resimsunucusu}${widget.image.yol}',
-            fit: BoxFit.contain,
-            width: double.infinity,
-            height: double.infinity,
-            placeholder: (context, url) => const Center(
-              child: CircularProgressIndicator(color: Colors.white54),
-            ),
-            errorWidget: (context, url, error) => const Center(
-              child: Icon(Icons.broken_image_outlined,
-                  color: Colors.white54, size: 48),
-            ),
-          ),
+          child: imageUrl.isEmpty
+              ? const Center(
+                  child: Icon(Icons.image_not_supported_outlined,
+                      color: Colors.white54, size: 48),
+                )
+              : CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  height: double.infinity,
+                  placeholder: (context, url) => const _ImageLoadingSkeleton(),
+                  errorWidget: (context, url, error) => const Center(
+                    child: Icon(Icons.broken_image_outlined,
+                        color: Colors.white54, size: 48),
+                  ),
+                ),
         ),
       ),
     );
@@ -166,11 +183,13 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
               children: [
                 _buildIconButton(
                   icon: Icons.arrow_back_ios_rounded,
+                  semanticLabel: 'Geri don',
                   onTap: () => Navigator.of(context).pop(),
                 ),
                 const Spacer(),
                 _buildIconButton(
                   icon: Icons.share_rounded,
+                  semanticLabel: 'Resmi paylas',
                   onTap: _shareImage,
                 ),
                 const SizedBox(width: 8),
@@ -179,6 +198,8 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
                   color: _isFavorite ? Colors.red : Colors.white,
+                  semanticLabel:
+                      _isFavorite ? 'Favorilerden cikar' : 'Favorilere ekle',
                   onTap: _toggleFavorite,
                 ),
               ],
@@ -192,27 +213,33 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   Widget _buildIconButton({
     required IconData icon,
     Color color = Colors.white,
+    required String semanticLabel,
     required VoidCallback onTap,
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            onTap();
-          },
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2),
+        child: Semantics(
+          button: true,
+          label: semanticLabel,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onTap();
+            },
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
               ),
+              child: Icon(icon, color: color, size: 22),
             ),
-            child: Icon(icon, color: color, size: 22),
           ),
         ),
       ),
@@ -303,27 +330,34 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildActionChip(
-            icon: _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            icon: _isFavorite
+                ? Icons.favorite_rounded
+                : Icons.favorite_border_rounded,
             label: _isFavorite ? 'Favoride' : 'Favori',
             color: _isFavorite ? Colors.red : Colors.white,
+            semanticLabel:
+                _isFavorite ? 'Favorilerden cikar' : 'Favorilere ekle',
             onTap: _toggleFavorite,
           ),
           _buildActionChip(
             icon: Icons.wallpaper_rounded,
             label: 'Duvar\nKagidi',
             color: Colors.blue,
+            semanticLabel: 'Duvar kagidi yap',
             onTap: _setWallpaperWithConfirmation,
           ),
           _buildActionChip(
             icon: Icons.download_rounded,
             label: 'Indir',
             color: Colors.green,
+            semanticLabel: 'Resmi indir',
             onTap: _downloadImage,
           ),
           _buildActionChip(
             icon: Icons.share_rounded,
             label: 'Paylas',
             color: Colors.purple,
+            semanticLabel: 'Resmi paylas',
             onTap: _shareImage,
           ),
         ],
@@ -335,6 +369,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
     required IconData icon,
     required String label,
     required Color color,
+    required String semanticLabel,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -343,29 +378,36 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
         onTap();
       },
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                height: 1.1,
-              ),
-              textAlign: TextAlign.center,
+      child: Semantics(
+        button: true,
+        label: semanticLabel,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 56, minHeight: 56),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color, size: 22),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -390,7 +432,11 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
             children: [
               _buildInfoChip(Icons.tag_rounded, '#${widget.image.id}'),
               const SizedBox(width: 8),
-              _buildInfoChip(Icons.category_rounded, widget.image.kategori.isNotEmpty ? 'Kategori ${widget.image.kategori}' : 'Genel'),
+              _buildInfoChip(
+                  Icons.category_rounded,
+                  widget.image.kategori.isNotEmpty
+                      ? 'Kategori ${widget.image.kategori}'
+                      : 'Genel'),
               const SizedBox(width: 8),
               _buildInfoChip(Icons.hd_rounded, '4K HD'),
             ],
@@ -438,14 +484,38 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
           ),
         ),
         const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                ),
+                child: Text(
+                  '$_similarLeadIndex/${_similarImages.length}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
         SizedBox(
           height: 140,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
+            controller: _similarScrollController,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: _similarImages.length,
             itemBuilder: (context, index) {
               final img = _similarImages[index];
+              final similarImageUrl = ayarlar.buildImageUrl(img.yol);
               return GestureDetector(
                 onTap: () {
                   HapticFeedback.lightImpact();
@@ -476,17 +546,25 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: '${ayarlar.resimsunucusu}${img.yol}',
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: Colors.grey[800],
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[800],
-                          child: const Icon(Icons.error, color: Colors.white54),
-                        ),
-                      ),
+                      child: similarImageUrl.isEmpty
+                          ? Container(
+                              color: Colors.grey[800],
+                              child: const Icon(
+                                  Icons.image_not_supported_outlined,
+                                  color: Colors.white54),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: similarImageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[800],
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[800],
+                                child: const Icon(Icons.error,
+                                    color: Colors.white54),
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -503,34 +581,10 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildProcessingOverlay() {
-    return Container(
-      color: Colors.black54,
-      child: Center(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
-                  Text(
-                    'Islem yapiliyor...',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return LoadingOverlay(
+      message: _processingMessage,
+      stepLabel: _processingStep,
+      progress: _downloadProgress,
     );
   }
 
@@ -539,6 +593,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   // ---------------------------------------------------------------------------
 
   Future<void> _toggleFavorite() async {
+    HapticFeedback.selectionClick();
     try {
       await ImageList.FavorilereEkle(context, widget.image.id);
       if (!mounted) return;
@@ -556,8 +611,8 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
             backgroundColor: _isFavorite ? Colors.green : Colors.grey[700],
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -567,8 +622,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   }
 
   void _shareImage() {
-    final imageUrl =
-        '${ayarlar.resimsunucusu}${widget.image.yol}';
+    final imageUrl = ayarlar.buildImageUrl(widget.image.yol);
     Share.share(
       '4K HD Duvar Kagidi:\n$imageUrl',
       subject: '4K-HD Duvar Kagidi #${widget.image.id}',
@@ -594,10 +648,18 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
       setState(() {
         _isWallpaperProcessing = true;
         _isProcessing = true;
+        _processingMessage = 'Duvar kagidi ayarlaniyor...';
+        _processingStep = 'Resim hazirlaniyor';
+        _downloadProgress = null;
       });
 
-      final url = '${ayarlar.resimsunucusu}${widget.image.yol}';
+      final url = ayarlar.buildImageUrl(widget.image.yol);
       final file = await DefaultCacheManager().getSingleFile(url);
+      if (mounted) {
+        setState(() {
+          _processingStep = 'Cihaza uygulaniyor';
+        });
+      }
       final result =
           await WallpaperManagerPlus().setWallpaper(file, wallpaperLocation);
       if (!mounted) return;
@@ -619,6 +681,9 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
         setState(() {
           _isWallpaperProcessing = false;
           _isProcessing = false;
+          _processingMessage = 'Islem yapiliyor...';
+          _processingStep = null;
+          _downloadProgress = null;
         });
       }
     }
@@ -626,16 +691,31 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
 
   Future<void> _downloadImage() async {
     try {
-      setState(() => _isProcessing = true);
+      setState(() {
+        _isProcessing = true;
+        _processingMessage = 'Resim indiriliyor...';
+        _processingStep = 'Dosya indiriliyor';
+        _downloadProgress = null;
+      });
 
-      final imageUrl = '${ayarlar.resimsunucusu}${widget.image.yol}';
+      final imageUrl = ayarlar.buildImageUrl(widget.image.yol);
       final now = DateTime.now();
 
-      final response = await Dio().get(
+      final response = await ref.read(dioClientProvider).externalGet<List<int>>(
         imageUrl,
-        options: Options(responseType: ResponseType.bytes),
+        responseType: ResponseType.bytes,
+        onReceiveProgress: (received, total) {
+          if (!mounted || total <= 0) return;
+          final ratio = received / total;
+          final percent = (ratio * 100).clamp(0, 100).toInt();
+          setState(() {
+            _downloadProgress = ratio;
+            _processingStep = 'Indiriliyor: %$percent';
+          });
+        },
       );
-      final imageBytes = Uint8List.fromList(response.data);
+      final List<int> downloadedBytes = response.data ?? <int>[];
+      final imageBytes = Uint8List.fromList(downloadedBytes);
 
       final ps = await PhotoManager.requestPermissionExtend();
       if (!ps.isAuth && ps != PermissionState.limited) {
@@ -662,7 +742,14 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
     } catch (e) {
       _showErrorAlert('Bir hata olustu: ${e.toString()}');
     } finally {
-      if (mounted) setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _processingMessage = 'Islem yapiliyor...';
+          _processingStep = null;
+          _downloadProgress = null;
+        });
+      }
     }
   }
 
@@ -685,6 +772,62 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
       title: 'Hata!',
       text: message,
       confirmBtnColor: Colors.red,
+    );
+  }
+}
+
+class _ImageLoadingSkeleton extends StatefulWidget {
+  const _ImageLoadingSkeleton();
+
+  @override
+  State<_ImageLoadingSkeleton> createState() => _ImageLoadingSkeletonState();
+}
+
+class _ImageLoadingSkeletonState extends State<_ImageLoadingSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+    _animation = Tween<double>(begin: -1.4, end: 1.4).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: [
+                Colors.white.withValues(alpha: 0.05),
+                Colors.white.withValues(alpha: 0.16),
+                Colors.white.withValues(alpha: 0.05),
+              ],
+            ),
+          ),
+          child: const Center(
+            child: Icon(Icons.image_rounded, color: Colors.white24, size: 38),
+          ),
+        );
+      },
     );
   }
 }
