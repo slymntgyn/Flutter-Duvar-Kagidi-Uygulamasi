@@ -52,17 +52,17 @@ class ImageList {
   }
 
   ImageList(this.id, this.yol, this.kategori, {this.isPro = false});
-  static Future<List<ImageList>?> GetResimler(BuildContext context) async {
+  static Future<List<ImageList>?> getImages(BuildContext context) async {
     try {
-      Result_Get result =
-          await Restful.Get_Request(ApiConstants.baseUrl, context, "resim");
+      ResultGet result =
+          await Restful.getRequest(ApiConstants.baseUrl, context, "resim");
 
       if (!context.mounted) {
         return null;
       }
 
       if (result.hata) {
-        Yardimci.AlertDialogError(
+        Yardimci.showErrorDialog(
             context, "Hata Oluştu", "Lütfen daha sonra tekrar deneyins");
       } else {
         if (result.sonuc != "") {
@@ -71,9 +71,9 @@ class ImageList {
           for (var e in jsonlist) {
             list.add(ImageList.fromJson(e));
           }
-          Genel.Resimler = List<ImageList>.from(list);
+          Genel.images = List<ImageList>.from(list);
 
-          debugPrint('object${Genel.Resimler}');
+          debugPrint('object${Genel.images}');
 
           return list;
         }
@@ -82,18 +82,18 @@ class ImageList {
       if (!context.mounted) {
         return null;
       }
-      Yardimci.AlertDialogError(
+      Yardimci.showErrorDialog(
           context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyiniz");
       return null;
     }
     return null;
   }
 
-  static Future<String?> FavorilereEkle(
-      BuildContext context, int ResimId) async {
+  static Future<String?> toggleFavorite(
+      BuildContext context, int imageId) async {
     try {
-      Result_Get result = await Restful.Post_Request(ApiConstants.baseUrl,
-          context, "kullanici/${Genel.CihazId}/favori/$ResimId", "");
+      ResultGet result = await Restful.postRequest(ApiConstants.baseUrl,
+          context, "kullanici/${Genel.deviceId}/favori/$imageId", "");
 
       if (!context.mounted) {
         return "Hata";
@@ -110,9 +110,10 @@ class ImageList {
       if (!context.mounted) {
         return "Hata";
       }
-      Yardimci.AlertDialogError(
+      Yardimci.showErrorDialog(
           context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyiniz");
       return "Hata";
     }
   }
 }
+

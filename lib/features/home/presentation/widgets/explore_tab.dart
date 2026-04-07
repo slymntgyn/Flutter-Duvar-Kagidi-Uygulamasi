@@ -1,5 +1,6 @@
-import 'dart:math' as math;
 import 'dart:ui';
+
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,7 @@ import 'package:senseriduvarkagidi/core/utils/error_message_mapper.dart';
 import 'package:senseriduvarkagidi/core/widgets/error_view.dart';
 import 'package:senseriduvarkagidi/core/widgets/loading_overlay.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
-import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
+import 'package:senseriduvarkagidi/model/kullanici_model.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
 import 'package:senseriduvarkagidi/core/widgets/wallpaper_location_dialog.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
@@ -108,7 +109,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     }
 
     _isFavorite = _imageList.isNotEmpty
-        ? Yardimci.favori_resimler_Kontrol(_imageList[_currentImageIndex].id)
+        ? Yardimci.isFavoriteImage(_imageList[_currentImageIndex].id)
         : false;
   }
 
@@ -126,7 +127,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
 
     return wallpapersAsync.when(
       loading: () => const LoadingOverlay(
-        message: 'Resimler yukleniyor...',
+        message: 'images yukleniyor...',
       ),
       error: (error, _) => Center(
         child: Padding(
@@ -544,7 +545,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   Widget _buildImageWidget(ImageList imageData) {
     final premium = ref.read(premiumProvider);
     final isLocked = imageData.isPro && !premium.isPro;
-    final imageUrl = ayarlar.buildImageUrl(imageData.yol);
+    final imageUrl = LegacyAyarlar.buildImageUrl(imageData.yol);
 
     return SizedBox(
       width: double.infinity,
@@ -706,7 +707,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     if (_currentImageIndex < _imageList.length) {
       setState(() {
         _isFavorite =
-            Yardimci.favori_resimler_Kontrol(_imageList[_currentImageIndex].id);
+            Yardimci.isFavoriteImage(_imageList[_currentImageIndex].id);
       });
     }
   }
@@ -761,12 +762,12 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   Future<void> _toggleFavorite() async {
     if (_currentImageIndex >= _imageList.length || !mounted) return;
     final imageId = _imageList[_currentImageIndex].id;
-    final bool wasFavorite = Yardimci.favori_resimler_Kontrol(imageId);
+    final bool wasFavorite = Yardimci.isFavoriteImage(imageId);
 
     try {
-      await ImageList.FavorilereEkle(context, imageId);
+      await ImageList.toggleFavorite(context, imageId);
       if (!mounted) return;
-      Yardimci.favori_resim_ekle(imageId.toString());
+      Yardimci.toggleFavoriteImage(imageId.toString());
 
       if (!wasFavorite) {
         setState(() {
@@ -795,7 +796,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
       return;
     }
     HapticFeedback.lightImpact();
-    if (ayarlar.odullureklamacikmi == '1') {
+    if (LegacyAyarlar.rewardedAdsEnabled == '1') {
       _showRewardedAdForWallpaper();
     } else {
       _showWallpaperLocationDialog();
@@ -803,14 +804,14 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   }
 
   void _showRewardedAdForWallpaper() {
-    if (Genel.reklam == null) {
+    if (Genel.rewardedAd == null) {
       _showWallpaperLocationDialog();
-      KategoriList.ReklamYukle(context);
+      KategoriList.loadRewardedAd(context);
     } else {
-      Genel.reklam?.show(onUserEarnedReward: (ad, rewardItem) {
+      Genel.rewardedAd?.show(onUserEarnedReward: (ad, rewardItem) {
         ad.dispose();
         _showWallpaperLocationDialog();
-        KategoriList.ReklamYukle(context);
+        KategoriList.loadRewardedAd(context);
       });
     }
   }
@@ -834,7 +835,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
         _processingStep = 'Resim hazirlaniyor';
         _downloadProgress = null;
       });
-      final url = ayarlar.buildImageUrl(imageData.yol);
+      final url = LegacyAyarlar.buildImageUrl(imageData.yol);
       final file = await DefaultCacheManager().getSingleFile(url);
       if (mounted) {
         setState(() {
@@ -847,8 +848,8 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
       if (result == 'Wallpaper set successfully' ||
           (result ?? '').contains('success')) {
         try {
-          await Kullanici.IslemLog(
-              context, Genel.CihazId, 'Duvar Kagidi Yapma', imageData.id);
+          await Kullanici.logAction(
+              context, Genel.deviceId, 'Duvar Kagidi Yapma', imageData.id);
         } catch (_) {}
         _showSuccessAlert('Duvar kagidi basariyla ayarlandi!');
       } else {
@@ -879,7 +880,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
       return;
     }
     final imageData = _imageList[_currentImageIndex];
-    if (ayarlar.odullureklamacikmi == '1') {
+    if (LegacyAyarlar.rewardedAdsEnabled == '1') {
       _showRewardedAdForDownload(imageData);
     } else {
       _download(imageData);
@@ -887,14 +888,14 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
   }
 
   void _showRewardedAdForDownload(ImageList imageData) {
-    if (Genel.reklam == null) {
+    if (Genel.rewardedAd == null) {
       _download(imageData);
-      KategoriList.ReklamYukle(context);
+      KategoriList.loadRewardedAd(context);
     } else {
-      Genel.reklam?.show(onUserEarnedReward: (ad, rewardItem) {
+      Genel.rewardedAd?.show(onUserEarnedReward: (ad, rewardItem) {
         ad.dispose();
         _download(imageData);
-        KategoriList.ReklamYukle(context);
+        KategoriList.loadRewardedAd(context);
       });
     }
   }
@@ -907,7 +908,7 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
         _processingStep = 'Dosya indiriliyor';
         _downloadProgress = null;
       });
-      final imageUrl = ayarlar.buildImageUrl(imageData.yol);
+      final imageUrl = LegacyAyarlar.buildImageUrl(imageData.yol);
       final now = DateTime.now();
       final response = await ref.read(dioClientProvider).externalGet<List<int>>(
         imageUrl,
@@ -933,8 +934,8 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
       if (!mounted) return;
       if (asset.id.isNotEmpty) {
         try {
-          await Kullanici.IslemLog(
-              context, Genel.CihazId, 'Download', imageData.id);
+          await Kullanici.logAction(
+              context, Genel.deviceId, 'Download', imageData.id);
         } catch (_) {}
         _showSuccessAlert('Resim basariyla indirildi!');
       } else {
@@ -977,3 +978,5 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
         confirmBtnColor: Colors.red);
   }
 }
+
+

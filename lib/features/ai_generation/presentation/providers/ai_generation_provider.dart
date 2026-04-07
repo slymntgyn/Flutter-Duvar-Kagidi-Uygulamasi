@@ -66,3 +66,4 @@ class AIGenerationNotifier extends StateNotifier<AIGenerationState> {
     state = const AIGenerationState();
   }
 }
+

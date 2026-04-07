@@ -9,3 +9,4 @@ class GenerationHistoryEntry {
     required this.createdAt,
   });
 }
+

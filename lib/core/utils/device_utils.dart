@@ -30,3 +30,4 @@ class DeviceUtils {
     return 'CIHAZ : ${digest.toString().trim()}';
   }
 }
+

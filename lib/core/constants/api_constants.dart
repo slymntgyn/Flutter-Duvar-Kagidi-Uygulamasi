@@ -73,3 +73,4 @@ class ApiConstants {
   static const Duration aiConnectTimeout = Duration(seconds: 30);
   static const Duration aiReceiveTimeout = Duration(seconds: 120);
 }
+

@@ -24,3 +24,4 @@ class WallpapersNotifier extends AsyncNotifier<List<WallpaperImage>> {
     state = await AsyncValue.guard(() => build());
   }
 }
+

@@ -43,3 +43,4 @@ class FailoverAIService implements AIImageService {
         const AIServiceException('Kullanılabilir AI servisi bulunamadı');
   }
 }
+

@@ -17,3 +17,4 @@ class Error<T> extends Result<T> {
   final Failure failure;
   const Error(this.failure);
 }
+

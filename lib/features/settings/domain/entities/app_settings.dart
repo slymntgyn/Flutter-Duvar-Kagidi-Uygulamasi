@@ -38,7 +38,7 @@ class AppSettings {
     this.aiProvider = 'openrouter',
   });
 
-  /// Bos / default ayarlar.
+  /// Bos / default LegacyAyarlar.
   static const AppSettings empty = AppSettings(
     imageServerUrl: '',
     isMaintenanceMode: false,
@@ -87,3 +87,4 @@ class AppSettings {
     );
   }
 }
+

@@ -34,3 +34,4 @@ class AIServiceException implements Exception {
   @override
   String toString() => 'AIServiceException: $message';
 }
+

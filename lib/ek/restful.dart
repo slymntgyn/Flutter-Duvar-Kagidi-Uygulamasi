@@ -6,9 +6,9 @@ import 'package:http/http.dart' as http;
 import 'package:senseriduvarkagidi/ek/result.dart';
 
 class Restful {
-  static Future<Result_Get> Get_Request(
+  static Future<ResultGet> getRequest(
       String link, BuildContext context, String fonksyion) async {
-    Result_Get result = Result_Get();
+    ResultGet result = ResultGet();
 
     debugPrint('$link/api/$fonksyion');
     try {
@@ -47,9 +47,9 @@ class Restful {
     }
   }
 
-  static Future<Result_Get> Post_Request(
+  static Future<ResultGet> postRequest(
       String link, BuildContext context, String fonksyion, String body) async {
-    Result_Get result = Result_Get();
+    ResultGet result = ResultGet();
     try {
       final http.Response response = await http
           .post(Uri.parse('$link/api/$fonksyion'),
@@ -84,3 +84,4 @@ class Restful {
     }
   }
 }
+

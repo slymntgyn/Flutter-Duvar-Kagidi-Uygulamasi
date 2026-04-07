@@ -45,3 +45,4 @@ class GenerationHistoryNotifier
     state = newList.take(AppConstants.maxGenerationHistory).toList();
   }
 }
+

@@ -140,3 +140,4 @@ class PremiumNotifier extends StateNotifier<PremiumStatus> {
   /// Sunucuyu manuel olarak yenile.
   Future<void> refresh() => _syncWithServer();
 }
+

@@ -32,11 +32,11 @@ class WallpaperRepositoryImpl implements WallpaperRepository {
         return Success(images);
       }
       return Error(ServerFailure(
-        'Resimler yüklenemedi',
+        'images yüklenemedi',
         statusCode: response.statusCode,
       ));
     } catch (e) {
-      return Error(NetworkFailure('Resimler yüklenirken hata: $e'));
+      return Error(NetworkFailure('images yüklenirken hata: $e'));
     }
   }
 
@@ -102,3 +102,4 @@ class WallpaperRepositoryImpl implements WallpaperRepository {
     }
   }
 }
+

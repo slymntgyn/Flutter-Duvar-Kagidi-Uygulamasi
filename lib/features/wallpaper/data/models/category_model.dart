@@ -13,13 +13,14 @@ class CategoryModel extends Category {
     return CategoryModel(
       id: json['id'] as int? ?? 0,
       name: json['kategori'] as String? ?? '',
-      imagePath: json['kategorI_RESMI'] as String? ?? '',
+      imagePath: json['categoryImage'] as String? ?? '',
     );
   }
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'kategori': name,
-        'kategorI_RESMI': imagePath,
+        'categoryImage': imagePath,
       };
 }
+

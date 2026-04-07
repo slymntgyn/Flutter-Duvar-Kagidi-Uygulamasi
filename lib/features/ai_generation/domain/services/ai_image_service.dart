@@ -14,3 +14,4 @@ abstract class AIImageService {
   /// Servis tanimlayicisi (loglama/analytics icin).
   String get serviceId;
 }
+

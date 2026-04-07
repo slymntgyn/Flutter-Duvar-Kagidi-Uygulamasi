@@ -13,3 +13,4 @@ class GenerationResult {
     required this.createdAt,
   });
 }
+

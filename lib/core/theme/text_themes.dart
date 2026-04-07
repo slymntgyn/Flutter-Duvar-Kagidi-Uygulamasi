@@ -11,3 +11,4 @@ class AppTextThemes {
   static TextTheme darkTextTheme() =>
       GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
 }
+

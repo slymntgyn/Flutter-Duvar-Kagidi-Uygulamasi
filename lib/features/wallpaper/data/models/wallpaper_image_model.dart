@@ -70,3 +70,4 @@ class WallpaperImageModel extends WallpaperImage {
         'is_pro': isPro,
       };
 }
+

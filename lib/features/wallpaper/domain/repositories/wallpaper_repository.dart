@@ -8,7 +8,7 @@ abstract class WallpaperRepository {
   /// Tum duvar kagitlarini getirir.
   Future<Result<List<WallpaperImage>>> getWallpapers();
 
-  /// Duvar kagidi olarak ayarlar.
+  /// Duvar kagidi olarak LegacyAyarlar.
   Future<Result<void>> setWallpaper(
       String imageUrl, WallpaperLocation location);
 
@@ -19,3 +19,4 @@ abstract class WallpaperRepository {
   Future<Result<void>> logAction(
       String deviceId, String action, int imageId);
 }
+

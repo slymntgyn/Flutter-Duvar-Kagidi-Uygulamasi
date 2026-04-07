@@ -1,3 +1,4 @@
+
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
@@ -16,7 +17,7 @@ import 'package:senseriduvarkagidi/ek/ayarlar.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
 import 'package:senseriduvarkagidi/ek/yardimci.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
-import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
+import 'package:senseriduvarkagidi/model/kullanici_model.dart';
 import 'package:senseriduvarkagidi/core/widgets/wallpaper_location_dialog.dart';
 import 'package:senseriduvarkagidi/core/widgets/loading_overlay.dart';
 
@@ -53,7 +54,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
 
   List<ImageList> _similarImages = [];
   final ScrollController _similarScrollController = ScrollController();
-  final int _similarLeadIndex = 1;
+  int _similarLeadIndex = 1;
 
   @override
   void initState() {
@@ -67,7 +68,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
       curve: Curves.easeIn,
     );
     _fadeController.forward();
-    _isFavorite = Yardimci.favori_resimler_Kontrol(widget.image.id);
+    _isFavorite = Yardimci.isFavoriteImage(widget.image.id);
     _similarScrollController.addListener(() {
       final index = ((_similarScrollController.offset / 98).round() + 1)
           .clamp(1, _similarImages.isEmpty ? 1 : _similarImages.length);
@@ -87,7 +88,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   }
 
   void _loadSimilarImages() {
-    final similar = Genel.Resimler.where((img) =>
+    final similar = Genel.images.where((img) =>
             img.kategori == widget.image.kategori && img.id != widget.image.id)
         .take(10)
         .toList();
@@ -126,7 +127,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildZoomableImage() {
-    final imageUrl = ayarlar.buildImageUrl(widget.image.yol);
+    final imageUrl = LegacyAyarlar.buildImageUrl(widget.image.yol);
     return FadeTransition(
       opacity: _fadeAnimation,
       child: InteractiveViewer(
@@ -515,7 +516,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
             itemCount: _similarImages.length,
             itemBuilder: (context, index) {
               final img = _similarImages[index];
-              final similarImageUrl = ayarlar.buildImageUrl(img.yol);
+              final similarImageUrl = LegacyAyarlar.buildImageUrl(img.yol);
               return GestureDetector(
                 onTap: () {
                   HapticFeedback.lightImpact();
@@ -595,12 +596,12 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   Future<void> _toggleFavorite() async {
     HapticFeedback.selectionClick();
     try {
-      await ImageList.FavorilereEkle(context, widget.image.id);
+      await ImageList.toggleFavorite(context, widget.image.id);
       if (!mounted) return;
       setState(() {
         _isFavorite = !_isFavorite;
       });
-      Yardimci.favori_resim_ekle(widget.image.id.toString());
+      Yardimci.toggleFavoriteImage(widget.image.id.toString());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -622,7 +623,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
   }
 
   void _shareImage() {
-    final imageUrl = ayarlar.buildImageUrl(widget.image.yol);
+    final imageUrl = LegacyAyarlar.buildImageUrl(widget.image.yol);
     Share.share(
       '4K HD Duvar Kagidi:\n$imageUrl',
       subject: '4K-HD Duvar Kagidi #${widget.image.id}',
@@ -653,7 +654,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
         _downloadProgress = null;
       });
 
-      final url = ayarlar.buildImageUrl(widget.image.yol);
+      final url = LegacyAyarlar.buildImageUrl(widget.image.yol);
       final file = await DefaultCacheManager().getSingleFile(url);
       if (mounted) {
         setState(() {
@@ -667,8 +668,8 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
       if (result == 'Wallpaper set successfully' ||
           (result ?? '').contains('success')) {
         try {
-          await Kullanici.IslemLog(
-              context, Genel.CihazId, 'Duvar Kagidi Yapma', widget.image.id);
+          await Kullanici.logAction(
+              context, Genel.deviceId, 'Duvar Kagidi Yapma', widget.image.id);
         } catch (_) {}
         _showSuccessAlert('Duvar kagidi basariyla ayarlandi!');
       } else {
@@ -698,7 +699,7 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
         _downloadProgress = null;
       });
 
-      final imageUrl = ayarlar.buildImageUrl(widget.image.yol);
+      final imageUrl = LegacyAyarlar.buildImageUrl(widget.image.yol);
       final now = DateTime.now();
 
       final response = await ref.read(dioClientProvider).externalGet<List<int>>(
@@ -732,8 +733,8 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
 
       if (asset.id.isNotEmpty) {
         try {
-          await Kullanici.IslemLog(
-              context, Genel.CihazId, 'Download', widget.image.id);
+          await Kullanici.logAction(
+              context, Genel.deviceId, 'Download', widget.image.id);
         } catch (_) {}
         _showSuccessAlert('Resim basariyla indirildi!');
       } else {
@@ -831,3 +832,5 @@ class _ImageLoadingSkeletonState extends State<_ImageLoadingSkeleton>
     );
   }
 }
+
+

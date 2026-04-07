@@ -1,60 +1,60 @@
-import 'package:senseriduvarkagidi/model/Ayarlar.dart';
+import 'package:senseriduvarkagidi/model/ayarlar_model.dart';
 
-class ayarlar {
+class LegacyAyarlar {
   static const String _fallbackImageServerUrl =
       'https://test.suleymanturan.com/resimler';
 
-  static String resimsunucusu = "";
-  static String bakimvarmi = "";
-  static String odullureklamacikmi = "";
-  static String odulluReklamId = "";
-  static String bannerReklamId = "";
-  static String bannerReklamAcikMi = "";
-  static String telegramlink = "";
-  static String aiapikey = "";
-  static String aiDuvarKagidiUretmeLimit = "";
-  static String aiDuvarKagidiUretmeModel = "";
+  static String imageServerUrl = "";
+  static String maintenanceEnabled = "";
+  static String rewardedAdsEnabled = "";
+  static String rewardedAdUnitId = "";
+  static String bannerAdUnitId = "";
+  static String bannerAdsEnabled = "";
+  static String telegramLink = "";
+  static String aiApiKey = "";
+  static String aiWallpaperLimit = "";
+  static String aiWallpaperModel = "";
 
-  static void Ayarlari_Yukle(List<Ayarlar> list) {
+  static void loadSettings(List<Ayarlar> list) {
     if (list.isEmpty) {
       return;
     }
 
     for (var item in list) {
       if (item.adi == "RESIM SUNUCUSU") {
-        resimsunucusu = item.deger;
+        imageServerUrl = item.deger;
       }
       if (item.adi == "BAKIM VAR MI") {
-        bakimvarmi = item.deger;
+        maintenanceEnabled = item.deger;
       }
       if (item.adi == "ODULLU REKLAM ACIK MI") {
-        odullureklamacikmi = item.deger;
+        rewardedAdsEnabled = item.deger;
       }
       if (item.adi == "ODULLU REKLAM ID") {
-        odulluReklamId = item.deger;
+        rewardedAdUnitId = item.deger;
       }
       if (item.adi == "TELEGRAM BUTON LINKI") {
-        telegramlink = item.deger;
+        telegramLink = item.deger;
       }
       if (item.adi == "BANNER REKLAM ID") {
-        bannerReklamId = item.deger;
+        bannerAdUnitId = item.deger;
       }
       if (item.adi == "BANNER REKLAM ACIK MI") {
-        bannerReklamAcikMi = item.deger;
+        bannerAdsEnabled = item.deger;
       }
       if (item.adi == "AI API KEY") {
-        aiapikey = item.deger;
+        aiApiKey = item.deger;
       }
       if (item.adi == "AI DUVAR KAĞIGI URETME LIMIT") {
-        aiDuvarKagidiUretmeLimit = item.deger;
+        aiWallpaperLimit = item.deger;
       }
       if (item.adi == "AI DUVAR KAĞIGI URETME MODEL") {
-        aiDuvarKagidiUretmeModel = item.deger;
+        aiWallpaperModel = item.deger;
       }
     }
   }
 
-  static bool String_To_Bool(String sonuc) {
+  static bool stringToBool(String sonuc) {
     if (sonuc == "E") {
       return true;
     } else {
@@ -62,7 +62,7 @@ class ayarlar {
     }
   }
 
-  static int String_To_Int(String sonuc) {
+  static int stringToInt(String sonuc) {
     try {
       return int.parse(sonuc);
     } catch (error) {
@@ -78,7 +78,7 @@ class ayarlar {
       return path;
     }
 
-    final base = resimsunucusu.trim();
+    final base = imageServerUrl.trim();
     final effectiveBase = base.isEmpty ? _fallbackImageServerUrl : base;
 
     final cleanBase = effectiveBase.endsWith('/')
@@ -88,3 +88,5 @@ class ayarlar {
     return '$cleanBase/$cleanPath';
   }
 }
+
+

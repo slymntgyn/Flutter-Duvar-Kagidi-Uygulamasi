@@ -1,46 +1,44 @@
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:senseriduvarkagidi/core/constants/api_constants.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 class Genel{
   // Tum legacy HTTP cagrilari ApiConstants.baseUrl uzerinden tek kaynaktan beslenir.
-  static String get web_api_link => ApiConstants.baseUrl;
+  static String get webApiLink => ApiConstants.baseUrl;
 
-  static Color renk_kirmizi=Colors.white;
+  static Color redColor=Colors.white;
 
-  static String UrlImage="";
+  static String imageUrl="";
   static int loginBackgroundIndex=0;
-  static String SecilenKategori="";
-  static int UrlImageId=0;
-  static String CihazId="";
-  static Color FavoriButonRengi=Colors.white;
+  static String selectedCategory="";
+  static int imageUrlId=0;
+  static String deviceId="";
+  static Color favoriteButtonColor=Colors.white;
 
 
 
 
-  static double genislik=0;
-  static double yukseklik=0;
-  static bool darkbutton=true;
+  static double width=0;
+  static double height=0;
+  static bool darkButton=true;
 
-   static RewardedAd? reklam;
+   static RewardedAd? rewardedAd;
     static String adUnitId="";
 
 
 
   static List<String> yetkiler=List<String>.empty(growable: true);
-  static List<ImageList> Resimler=List<ImageList>.empty(growable: true);
-  static ImageList SecilenResimler=ImageList(UrlImageId,UrlImage,SecilenKategori);
-  static List<KategoriList> Kategoriler=List<KategoriList>.empty(growable: true);
-  static List<String> favoriresimler=List<String>.empty(growable: true);
-  static List<String> tekresminkategorileri=List<String>.empty(growable: true);
+  static List<ImageList> images=List<ImageList>.empty(growable: true);
+  static ImageList selectedImage=ImageList(imageUrlId,imageUrl,selectedCategory);
+  static List<KategoriList> categories=List<KategoriList>.empty(growable: true);
+  static List<String> favoriteImages=List<String>.empty(growable: true);
+  static List<String> singleImageCategories=List<String>.empty(growable: true);
 
 
-  static List<Widget> resimwidget=List<Widget>.empty(growable: true);
-  static List<Widget> favoriresimwidget=List<Widget>.empty(growable: true);
+  static List<Widget> imageWidgets=List<Widget>.empty(growable: true);
+  static List<Widget> favoriteImageWidgets=List<Widget>.empty(growable: true);
 
 
     static  List<String>bgList=[
@@ -57,3 +55,5 @@ class Genel{
 //static String mail_sifre="burotime**2020";
 
 }
+
+

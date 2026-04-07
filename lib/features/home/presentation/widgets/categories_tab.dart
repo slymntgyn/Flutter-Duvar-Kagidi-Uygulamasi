@@ -1,5 +1,6 @@
-import 'dart:async';
 import 'dart:ui';
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,7 +16,7 @@ import 'package:senseriduvarkagidi/features/wallpaper/domain/entities/category.d
 import 'package:senseriduvarkagidi/features/wallpaper/presentation/providers/category_provider.dart';
 import 'package:senseriduvarkagidi/features/wallpaper/presentation/screens/category_images_screen.dart';
 
-/// Kategoriler tab — Pro UI.
+/// categories tab — Pro UI.
 /// Animated gradient hero baslik, arama/filtreleme, glassmorphism kartlar,
 /// shimmer yukleme, pull-to-refresh, staggered masonry grid.
 class CategoriesTab extends ConsumerStatefulWidget {
@@ -66,7 +67,7 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
           (c) => KategoriList.fromJson({
             'id': c.id,
             'kategori': c.name,
-            'kategorI_RESMI': c.imagePath,
+            'categoryImage': c.imagePath,
           }),
         )
         .toList();
@@ -204,7 +205,7 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
             children: [
               // Background image
               CachedNetworkImage(
-                imageUrl: ayarlar.buildImageUrl(category.kategorI_RESMI),
+                imageUrl: LegacyAyarlar.buildImageUrl(category.categoryImage),
                 fit: BoxFit.cover,
                 placeholder: (context, url) => const _ShimmerBox(),
                 errorWidget: (context, url, error) => Container(
@@ -295,7 +296,7 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
-          Text('Kategoriler yukleniyor...',
+          Text('categories yukleniyor...',
               style: TextStyle(color: Colors.grey[500])),
         ],
       ),
@@ -428,7 +429,7 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Kategoriler',
+                            'categories',
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineMedium
@@ -556,3 +557,4 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     );
   }
 }
+

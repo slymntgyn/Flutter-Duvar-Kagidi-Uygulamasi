@@ -6,3 +6,4 @@ abstract class SettingsRepository {
   /// Sunucudan uygulama ayarlarini getirir.
   Future<Result<AppSettings>> getSettings();
 }
+

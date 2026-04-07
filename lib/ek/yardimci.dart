@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crypto/crypto.dart'; // For sha256
 
 class Yardimci {
-  static Future<void> AlertDialogExit(
+  static Future<void> showExitDialog(
       BuildContext context, String baslik, String icerik) {
     return QuickAlert.show(
       context: context,
@@ -23,7 +23,7 @@ class Yardimci {
       },
     );
   }
-  static Future<void> AlertDialogUyari(
+  static Future<void> showWarningDialog(
       BuildContext context, String baslik, String icerik) {
     return QuickAlert.show(
       context: context,
@@ -39,15 +39,15 @@ class Yardimci {
   }
   static String hashPassword(String password) {
     // Şifreyi UTF-8 formatında encode et
-    var bytes = utf8.encode(password);
+    final List<int> bytes = utf8.encode(password);
 
     // SHA-256 algoritması ile hash'le
-    var digest = sha256.convert(bytes);
+    final Digest digest = sha256.convert(bytes);
 
     // Hash'i hexadecimal string olarak döndür
     return digest.toString();
   }
-  static Future<void> AlertDialogError(BuildContext context,String baslik,String icerik){
+  static Future<void> showErrorDialog(BuildContext context,String baslik,String icerik){
 
     return  QuickAlert.show(
       context: context,
@@ -58,7 +58,7 @@ class Yardimci {
     );
 
   }
-  static Future<void> AlertDialogBasarili(BuildContext context,String baslik,String icerik){
+  static Future<void> showSuccessDialog(BuildContext context,String baslik,String icerik){
 
     return  QuickAlert.show(
       context: context,
@@ -74,8 +74,8 @@ class Yardimci {
     );
 
   }
-  static int AlertDialogSetWallpaper(BuildContext context,String baslik,String icerik){
-var aa=0;
+  static int showSetWallpaperDialog(BuildContext context,String baslik,String icerik){
+int selection = 0;
       QuickAlert.show(
         context: context,
         type: QuickAlertType.loading,
@@ -89,7 +89,7 @@ var aa=0;
                 textStyle: const TextStyle(fontSize: 20)),
             icon: const Icon(Icons.lock),
             onPressed: () {
-              aa=1;
+              selection = 1;
             },
             label: const Text('Kilit Ekranı'),
           ),
@@ -99,7 +99,7 @@ var aa=0;
                 textStyle: const TextStyle(fontSize: 20)),
             icon: const Icon(Icons.home),
             onPressed: () {
-              aa=2;
+              selection = 2;
             },
             label: const Text('Ana Ekran'),
           ),TextButton.icon(
@@ -108,7 +108,7 @@ var aa=0;
                 textStyle: const TextStyle(fontSize: 20)),
             icon: const Icon(Icons.phone_android),
             onPressed: () {
-              aa=3;
+              selection = 3;
             },
             label: const Text('Her ikiside'),
           ),
@@ -118,9 +118,9 @@ var aa=0;
 
 
     );
-return aa;
+return selection;
   }
-  static Future<String> Cihaz_Bilgi_Getir() async {
+  static Future<String> getDeviceInfo() async {
     String deviceId = "";
 
     try {
@@ -138,13 +138,13 @@ return aa;
 
         // Kaydet ki bir daha oluşturmasın
         await prefs.setString('device_unique_id', deviceId);
-        print("Yeni cihaz ID oluşturuldu: $deviceId");
+        debugPrint("Yeni cihaz ID oluşturuldu: $deviceId");
       } else {
-        print("Mevcut cihaz ID kullanılıyor: $deviceId");
+        debugPrint("Mevcut cihaz ID kullanılıyor: $deviceId");
       }
 
     } catch (e) {
-      print("Cihaz ID hatası: $e");
+      debugPrint("Cihaz ID hatası: $e");
       // En basit fallback
       deviceId = "DEV-${DateTime.now().millisecondsSinceEpoch}";
     }
@@ -154,13 +154,13 @@ return aa;
     var digest = sha256.convert(bytes);
     String finalId = digest.toString();
 
-    Genel.CihazId = "CIHAZ : ${finalId.trim()}";
-    print(Genel.CihazId);
+    Genel.deviceId = "CIHAZ : ${finalId.trim()}";
+    debugPrint(Genel.deviceId);
 
     return finalId;
   }
 
-  static void Sayfa_Gecisi(BuildContext context, Widget newPage) {
+  static void navigateToPage(BuildContext context, Widget newPage) {
     /*Navigator.push(
         context, MaterialPageRoute(builder: (BuildContext context) => newPage));*/
 
@@ -170,7 +170,7 @@ return aa;
         (e) => false);
   }
 
-  static String Tarih_Formatla(String tarih) {
+  static String formatDate(String tarih) {
     String yeniTarih = tarih.replaceAll('.', '');
     try {
       String tarih2 = yeniTarih.split(' ')[0];
@@ -181,7 +181,7 @@ return aa;
     }
   }
 
-  static String Tarih_Formatla2(String tarih) {
+  static String formatDateShort(String tarih) {
     String yeniTarih = tarih.replaceAll('.', '');
     try {
       String tarih2 = yeniTarih.split(' ')[0];
@@ -202,75 +202,63 @@ return aa;
       return "";
     }
   }*/
-  static bool Yetki_Kontrol(String yetki){
-    if(Genel.yetkiler.contains(yetki))
-      return true;
-    else
-      return false;
+  static bool hasPermission(String yetki){
+    return Genel.yetkiler.contains(yetki);
     }
 
-  static Yetkileri_Yukle(String yetkilerStr){
+  static void loadPermissions(String yetkilerStr){
     try{
-      List<String> yetkiler=yetkilerStr.split(';');
-      for(var item in yetkiler){
-        if(item!="") {
+      final List<String> yetkiler = yetkilerStr.split(';');
+      for (final String item in yetkiler){
+        if (item.isNotEmpty) {
           Genel.yetkiler.add(item);
         }
 
       }
     }catch(error){
-
+      debugPrint(error.toString());
     }
 
   }
-  static favori_resimleri_Yukle(String favoriResimler){
+  static void loadFavoriteImages(String favoriimages){
     try{
-      List<String> favoriresimler=favoriResimler.split(';');
-      for(var item in favoriresimler){
-        if(item!="") {
-          Genel.favoriresimler.add(item);
+      final List<String> favoriteImages = favoriimages.split(';');
+      for (final String item in favoriteImages){
+        if (item.isNotEmpty) {
+          Genel.favoriteImages.add(item);
         }
       }
     }catch(error){
-
+      debugPrint(error.toString());
     }
 
   }
-  static favori_resim_ekle(String favoriResim){
+  static void toggleFavoriteImage(String favoriResim){
     try{
-
-        if(Genel.favoriresimler.contains(favoriResim)) {
-          Genel.favoriresimler.remove(favoriResim);
+        if (Genel.favoriteImages.contains(favoriResim)) {
+          Genel.favoriteImages.remove(favoriResim);
         } else {
-          Genel.favoriresimler.add(favoriResim);
+          Genel.favoriteImages.add(favoriResim);
         }
-
-
-
-
-
     }catch(error){
-
+      debugPrint(error.toString());
     }
 
   }
-  static Future<void> Veri_Kaydet_String(String name, String value) async {
+  static Future<void> saveString(String name, String value) async {
     final preferences = await SharedPreferences.getInstance();
     preferences.setString(name, value);
   }
 
-  static Future<String> Veri_Getir_String(String name) async {
+  static Future<String> getString(String name) async {
     final preferences = await SharedPreferences.getInstance();
     return (preferences.getString(name) ?? "");
   }
-  static bool favori_resimler_Kontrol(int yetki){
-    if(Genel.favoriresimler.contains(yetki.toString()))
-      return true;
-    else
-      return false;
+  static bool isFavoriteImage(int yetki){
+    return Genel.favoriteImages.contains(yetki.toString());
     }
 
-  static double Bayt_to_Mb(int bayt) {
+  static double bytesToMb(int bayt) {
     if (bayt > 0) {
       return (bayt / (1000 * 1000));
     } else {
@@ -280,3 +268,5 @@ return aa;
 
 
 }
+
+

@@ -10,7 +10,7 @@ class ShowUpAnimation extends StatefulWidget {
   const ShowUpAnimation({super.key, required this.child, this.delay});
 
   @override
-  _ShowUpAnimationState createState() => _ShowUpAnimationState();
+  State<ShowUpAnimation> createState() => _ShowUpAnimationState();
 }
 
 class _ShowUpAnimationState extends State<ShowUpAnimation> with TickerProviderStateMixin {

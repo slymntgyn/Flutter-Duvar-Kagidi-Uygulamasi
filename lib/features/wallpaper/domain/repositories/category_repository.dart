@@ -6,3 +6,4 @@ abstract class CategoryRepository {
   /// Tum kategorileri getirir.
   Future<Result<List<Category>>> getCategories();
 }
+

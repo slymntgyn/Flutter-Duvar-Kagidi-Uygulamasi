@@ -103,3 +103,4 @@ class AppTheme {
         AppThemeMode.amoled => amoled(),
       };
 }
+

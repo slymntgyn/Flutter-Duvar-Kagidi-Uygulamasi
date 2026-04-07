@@ -15,3 +15,4 @@ class User {
 
   static const User empty = User(permissions: [], favoriteImageIds: []);
 }
+

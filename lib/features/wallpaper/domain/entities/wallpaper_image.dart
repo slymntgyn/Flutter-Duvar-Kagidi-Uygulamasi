@@ -23,3 +23,4 @@ class WallpaperImage {
   @override
   int get hashCode => id.hashCode;
 }
+

@@ -1,3 +1,4 @@
+
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -8,9 +9,9 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import 'package:senseriduvarkagidi/ek/ayarlar.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
+import 'package:senseriduvarkagidi/features/wallpaper/presentation/screens/image_detail_screen.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
-import 'package:senseriduvarkagidi/features/wallpaper/presentation/screens/image_detail_screen.dart';
 
 /// Kategori detay ekrani.
 /// Collapsible SliverAppBar, Masonry grid, siralama, Hero navigasyon.
@@ -28,7 +29,7 @@ enum _SortOption { shuffle, idAsc, idDesc }
 
 class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
     with SingleTickerProviderStateMixin {
-  List<ImageList> _images = [];
+  List<ImageList> _images = <ImageList>[];
   _SortOption _sortOption = _SortOption.shuffle;
   bool _isInitialLoading = true;
 
@@ -52,22 +53,23 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
   }
 
   void _loadImages() {
-    final filtered = Genel.Resimler.where(
-        (img) => img.kategori == widget.category.id.toString()).toList();
+    final List<ImageList> filtered = Genel.images.where(
+      (ImageList img) => img.kategori == widget.category.id.toString(),
+    ).toList();
 
     // If no match by ID, show all (fallback)
-    final list =
-        filtered.isNotEmpty ? filtered : List<ImageList>.from(Genel.Resimler);
+    final List<ImageList> list =
+        filtered.isNotEmpty ? filtered : List<ImageList>.from(Genel.images);
 
     switch (_sortOption) {
       case _SortOption.shuffle:
         list.shuffle();
         break;
       case _SortOption.idAsc:
-        list.sort((a, b) => a.id.compareTo(b.id));
+        list.sort((ImageList a, ImageList b) => a.id.compareTo(b.id));
         break;
       case _SortOption.idDesc:
-        list.sort((a, b) => b.id.compareTo(a.id));
+        list.sort((ImageList a, ImageList b) => b.id.compareTo(a.id));
         break;
     }
 
@@ -78,17 +80,17 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
   }
 
   Future<void> _refresh() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     _loadImages();
   }
 
   void _showSortSheet() {
     HapticFeedback.lightImpact();
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _buildSortSheet(ctx),
+      builder: (BuildContext ctx) => _buildSortSheet(ctx),
     );
   }
 
@@ -126,11 +128,23 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
               ),
               const SizedBox(height: 16),
               _sortTile(
-                  ctx, Icons.shuffle_rounded, 'Karistir', _SortOption.shuffle),
-              _sortTile(ctx, Icons.arrow_upward_rounded, 'Eskiden Yeniye',
-                  _SortOption.idAsc),
-              _sortTile(ctx, Icons.arrow_downward_rounded, 'Yeniden Eskiye',
-                  _SortOption.idDesc),
+                ctx,
+                Icons.shuffle_rounded,
+                'Karistir',
+                _SortOption.shuffle,
+              ),
+              _sortTile(
+                ctx,
+                Icons.arrow_upward_rounded,
+                'Eskiden Yeniye',
+                _SortOption.idAsc,
+              ),
+              _sortTile(
+                ctx,
+                Icons.arrow_downward_rounded,
+                'Yeniden Eskiye',
+                _SortOption.idDesc,
+              ),
               const SizedBox(height: 16),
             ],
           ),
@@ -141,7 +155,7 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
 
   Widget _sortTile(
       BuildContext ctx, IconData icon, String label, _SortOption opt) {
-    final isSelected = _sortOption == opt;
+    final bool isSelected = _sortOption == opt;
     return ListTile(
       tileColor: isSelected ? Colors.teal.withValues(alpha: 0.12) : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -170,7 +184,7 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: CustomScrollView(
-          slivers: [
+          slivers: <Widget>[
             _buildSliverAppBar(),
             _buildImageGrid(),
             const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
@@ -201,7 +215,7 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
           ),
         ),
       ),
-      actions: [
+      actions: <Widget>[
         IconButton(
           icon: const Icon(Icons.sort_rounded, color: Colors.white),
           onPressed: _showSortSheet,
@@ -214,15 +228,18 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            shadows: [
+            shadows: <Shadow>[
               Shadow(
-                  offset: Offset(1, 1), blurRadius: 4, color: Colors.black54),
+                offset: Offset(1, 1),
+                blurRadius: 4,
+                color: Colors.black54,
+              ),
             ],
           ),
         ),
         titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
         background: _buildHeroBackground(),
-        stretchModes: const [
+        stretchModes: const <StretchMode>[
           StretchMode.zoomBackground,
           StretchMode.blurBackground,
         ],
@@ -231,34 +248,41 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
   }
 
   Widget _buildHeroBackground() {
-    final categoryCoverUrl =
-        ayarlar.buildImageUrl(widget.category.kategorI_RESMI);
+    final String categoryCoverUrl =
+        LegacyAyarlar.buildImageUrl(widget.category.categoryImage);
     return Stack(
       fit: StackFit.expand,
-      children: [
+      children: <Widget>[
         // Category cover image
         categoryCoverUrl.isEmpty
             ? Container(
                 color: Colors.grey[800],
-                child: const Icon(Icons.image_not_supported_outlined,
-                    color: Colors.white38, size: 48),
+                child: const Icon(
+                  Icons.image_not_supported_outlined,
+                  color: Colors.white38,
+                  size: 48,
+                ),
               )
             : CachedNetworkImage(
                 imageUrl: categoryCoverUrl,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
+                placeholder: (BuildContext context, String url) => Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Colors.grey[800]!, Colors.grey[900]!],
+                      colors: <Color>[Colors.grey[800]!, Colors.grey[900]!],
                     ),
                   ),
                 ),
-                errorWidget: (context, url, error) => Container(
+                errorWidget: (BuildContext context, String url, Object error) =>
+                    Container(
                   color: Colors.grey[800],
-                  child: const Icon(Icons.broken_image_outlined,
-                      color: Colors.white38, size: 48),
+                  child: const Icon(
+                    Icons.broken_image_outlined,
+                    color: Colors.white38,
+                    size: 48,
+                  ),
                 ),
               ),
 
@@ -268,7 +292,7 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
+              colors: <Color>[
                 Colors.transparent,
                 Colors.black.withValues(alpha: 0.7),
               ],
@@ -290,9 +314,12 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.photo_library_outlined,
-                      color: Colors.white70, size: 14),
+                children: <Widget>[
+                  const Icon(
+                    Icons.photo_library_outlined,
+                    color: Colors.white70,
+                    size: 14,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '${_images.length} resim',
@@ -320,9 +347,9 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
           mainAxisSpacing: 8,
           crossAxisSpacing: 8,
           childCount: 8,
-          itemBuilder: (context, index) {
-            final isLong = index % 3 == 0;
-            final height = isLong ? 260.0 : 200.0;
+          itemBuilder: (BuildContext context, int index) {
+            final bool isLong = index % 3 == 0;
+            final double height = isLong ? 260.0 : 200.0;
             return SizedBox(height: height, child: _buildShimmerPlaceholder());
           },
         ),
@@ -342,117 +369,146 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
         childCount: _images.length,
-        itemBuilder: (context, index) => _buildImageCard(_images[index], index),
+        itemBuilder: (BuildContext context, int index) =>
+            _buildImageCard(_images[index], index),
       ),
     );
   }
 
   Widget _buildImageCard(ImageList image, int index) {
-    // Alternate card heights for masonry effect
-    final isLong = index % 3 == 0;
-    final height = isLong ? 260.0 : 200.0;
-    final heroTag = 'category_${image.id}_$index';
-    final imageUrl = ayarlar.buildImageUrl(image.yol);
+    final bool isLong = index % 3 == 0;
+    final double height = isLong ? 260.0 : 200.0;
+    final String heroTag = 'category_${image.id}_$index';
+    final String imageUrl = LegacyAyarlar.buildImageUrl(image.yol);
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (ctx, anim, secAnim) => ImageDetailScreen(
-              image: image,
-              heroTag: heroTag,
-            ),
-            transitionsBuilder: (ctx, anim, secAnim, child) {
-              return FadeTransition(opacity: anim, child: child);
-            },
-          ),
-        );
-      },
-      child: Hero(
-        tag: heroTag,
-        child: Container(
-          height: height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                imageUrl.isEmpty
-                    ? Container(
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.image_not_supported_outlined),
-                      )
-                    : CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) =>
-                            _buildShimmerPlaceholder(),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.error_outline),
-                        ),
-                      ),
-
-                // Gradient overlay at bottom
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 60,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.6),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            '4K',
-                            style:
-                                TextStyle(color: Colors.white70, fontSize: 10),
-                          ),
-                        ),
-                        Icon(
-                          Icons.fullscreen_rounded,
-                          color: Colors.white.withValues(alpha: 0.7),
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                  ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          _openImageDetail(image, heroTag);
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Hero(
+          tag: heroTag,
+          child: Container(
+            height: height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  imageUrl.isEmpty
+                      ? Container(
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.image_not_supported_outlined),
+                        )
+                      : CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (BuildContext context, String url) =>
+                              _buildShimmerPlaceholder(),
+                          errorWidget: (BuildContext context, String url,
+                                  Object error) =>
+                              Container(
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.error_outline),
+                          ),
+                        ),
+
+                  // Gradient overlay at bottom
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 60,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: <Color>[
+                            Colors.black.withValues(alpha: 0.6),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: <Widget>[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              '4K',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.fullscreen_rounded,
+                            color: Colors.white.withValues(alpha: 0.7),
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _openImageDetail(ImageList image, String heroTag) {
+    Navigator.push(
+      context,
+      PageRouteBuilder<void>(
+        pageBuilder: (
+          BuildContext ctx,
+          Animation<double> anim,
+          Animation<double> secAnim,
+        ) =>
+            ImageDetailScreen(
+          image: image,
+          heroTag: heroTag,
+        ),
+        transitionsBuilder: (
+          BuildContext ctx,
+          Animation<double> anim,
+          Animation<double> secAnim,
+          Widget child,
+        ) {
+          final Animation<double> fadeAnimation = CurvedAnimation(
+            parent: anim,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(opacity: fadeAnimation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 280),
       ),
     );
   }
@@ -467,7 +523,7 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          children: <Widget>[
             Icon(Icons.image_not_supported_outlined,
                 size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
@@ -513,8 +569,9 @@ class _ShimmerBoxState extends State<_ShimmerBox>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat();
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
     _anim = Tween<double>(begin: -1.5, end: 1.5).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
     );
@@ -530,13 +587,13 @@ class _ShimmerBoxState extends State<_ShimmerBox>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
-      builder: (context, _) {
+      builder: (BuildContext context, Widget? child) {
         return Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment(_anim.value - 1, 0),
               end: Alignment(_anim.value, 0),
-              colors: [
+              colors: <Color>[
                 Colors.grey[300]!,
                 Colors.grey[100]!,
                 Colors.grey[300]!,
@@ -548,3 +605,4 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     );
   }
 }
+

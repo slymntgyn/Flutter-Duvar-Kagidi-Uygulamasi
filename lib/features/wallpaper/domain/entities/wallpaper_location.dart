@@ -9,3 +9,4 @@ enum WallpaperLocation {
 
   const WallpaperLocation(this.value, this.label);
 }
+

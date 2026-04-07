@@ -34,3 +34,4 @@ class FavoritesNotifier extends StateNotifier<List<int>> {
   /// Resmin favori olup olmadigini kontrol eder.
   bool isFavorite(int imageId) => state.contains(imageId);
 }
+

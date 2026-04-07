@@ -70,3 +70,4 @@ class DailyLimitNotifier extends StateNotifier<DailyLimitState> {
 
   bool canGenerate() => !state.isExhausted;
 }
+

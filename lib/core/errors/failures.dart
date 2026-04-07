@@ -33,3 +33,4 @@ class AIServiceFailure extends Failure {
 class PermissionFailure extends Failure {
   const PermissionFailure(super.message);
 }
+

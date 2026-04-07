@@ -66,3 +66,4 @@ class MyApp extends ConsumerWidget {
         AppThemeMode.amoled => ThemeMode.dark,
       };
 }
+

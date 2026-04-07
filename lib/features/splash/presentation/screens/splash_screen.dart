@@ -14,8 +14,8 @@ import 'package:senseriduvarkagidi/core/theme/app_theme.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
 import 'package:senseriduvarkagidi/ek/yardimci.dart';
 import 'package:senseriduvarkagidi/ek/ayarlar.dart';
-import 'package:senseriduvarkagidi/model/Ayarlar.dart';
-import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
+import 'package:senseriduvarkagidi/model/ayarlar_model.dart';
+import 'package:senseriduvarkagidi/model/kullanici_model.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
 import 'package:senseriduvarkagidi/features/home/presentation/screens/home_screen.dart';
@@ -155,7 +155,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   bool get _canContinueOffline {
-    return Genel.Resimler.isNotEmpty && Genel.Kategoriler.isNotEmpty;
+    return Genel.images.isNotEmpty && Genel.categories.isNotEmpty;
   }
 
   void _continueOffline() {
@@ -198,17 +198,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _updateProgress(0.2, 'Ayarlar yukleniyor...');
 
     // -- Old dark-mode preference (backward compat) --------------------------
-    String darkmode = await Yardimci.Veri_Getir_String('darkmode');
+    String darkmode = await Yardimci.getString('darkmode');
     if (darkmode.isEmpty) darkmode = 'false';
-    Genel.darkbutton = bool.parse(darkmode);
+    Genel.darkButton = bool.parse(darkmode);
 
     // Sync Riverpod theme state with legacy flag
     final currentTheme = ref.read(themeProvider);
     final isDarkInRiverpod = currentTheme == AppThemeMode.dark ||
         currentTheme == AppThemeMode.amoled;
-    if (Genel.darkbutton && !isDarkInRiverpod) {
+    if (Genel.darkButton && !isDarkInRiverpod) {
       ref.read(themeProvider.notifier).setTheme(AppThemeMode.dark);
-    } else if (!Genel.darkbutton && isDarkInRiverpod) {
+    } else if (!Genel.darkButton && isDarkInRiverpod) {
       ref.read(themeProvider.notifier).setTheme(AppThemeMode.light);
     }
 
@@ -216,7 +216,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _updateProgress(0.3, 'Sunucu ayarlari aliniyor...');
     if (!mounted) return;
 
-    List<Ayarlar>? list = await Ayarlar.Ayarlari_Getir(context);
+    List<Ayarlar>? list = await Ayarlar.getSettings(context);
     if (list == null) {
       throw Exception(
           'Ayarlar yuklenemedi. Internetini kontrol edip tekrar dene.');
@@ -224,11 +224,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (list.isEmpty) {
       throw Exception('Ayarlar su anda bos geldi. Biraz sonra tekrar dene.');
     }
-    ayarlar.Ayarlari_Yukle(list);
+    LegacyAyarlar.loadSettings(list);
 
-    Genel.adUnitId = ayarlar.odulluReklamId;
+    Genel.adUnitId = LegacyAyarlar.rewardedAdUnitId;
 
-    if (ayarlar.bakimvarmi == '1') {
+    if (LegacyAyarlar.maintenanceEnabled == '1') {
       throw Exception(
         'Sunucu su anda bakimda. Lutfen daha sonra tekrar dene.',
       );
@@ -239,16 +239,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _stepGetDeviceId() async {
     _updateProgress(0.5, 'Cihaz bilgileri aliniyor...');
 
-    // Old path -- populates Genel.CihazId
-    await Yardimci.Cihaz_Bilgi_Getir();
-    if (Genel.CihazId.trim().isEmpty) {
+    // Old path -- populates Genel.deviceId
+    await Yardimci.getDeviceInfo();
+    if (Genel.deviceId.trim().isEmpty) {
       throw Exception('Cihaz bilgileri alinamadi. Lutfen tekrar dene.');
     }
 
     // Also load user info through old path
     _updateProgress(0.6, 'Kullanici bilgileri yukleniyor...');
     if (!mounted) return;
-    final user = await Kullanici.Kullanici_Getir(context);
+    final user = await Kullanici.getUser(context);
     if (user == null) {
       throw Exception('Kullanici bilgileri alinamadi. Lutfen tekrar dene.');
     }
@@ -256,7 +256,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   /// Step 4 -- Load wallpapers via new repository chain
   Future<void> _stepLoadWallpapers() async {
-    _updateProgress(0.7, 'Resimler yukleniyor...');
+    _updateProgress(0.7, 'images yukleniyor...');
     if (!mounted) return;
 
     final repo = ref.read(wallpaperRepositoryProvider);
@@ -268,7 +268,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           throw Exception(
               'Resim listesi bos geldi. Internetini kontrol edip tekrar dene.');
         }
-        Genel.Resimler = data
+        Genel.images = data
             .map((w) => ImageList(
                   w.id,
                   w.path,
@@ -283,7 +283,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   /// Step 5 -- Load categories via new repository chain
   Future<void> _stepLoadCategories() async {
-    _updateProgress(0.9, 'Kategoriler yukleniyor...');
+    _updateProgress(0.9, 'categories yukleniyor...');
     if (!mounted) return;
 
     final repo = ref.read(categoryRepositoryProvider);
@@ -295,12 +295,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           throw Exception(
               'Kategori listesi bos geldi. Internetini kontrol edip tekrar dene.');
         }
-        Genel.Kategoriler = data
+        Genel.categories = data
             .map(
               (c) => KategoriList.fromJson({
                 'id': c.id,
                 'kategori': c.name,
-                'kategorI_RESMI': c.imagePath,
+                'categoryImage': c.imagePath,
               }),
             )
             .toList();
@@ -311,7 +311,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Prepare ads
     _updateProgress(0.95, 'Reklamlar hazirlaniyor...');
     if (!mounted) return;
-    KategoriList.ReklamYukle(context);
+    KategoriList.loadRewardedAd(context);
   }
 
   /// Step 6 -- Done -- navigate to main screen
@@ -375,8 +375,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     // Keep legacy dimension globals in sync
-    Genel.genislik = MediaQuery.of(context).size.width;
-    Genel.yukseklik = MediaQuery.of(context).size.height;
+    Genel.width = MediaQuery.of(context).size.width;
+    Genel.height = MediaQuery.of(context).size.height;
 
     final themeMode = ref.watch(themeProvider);
     final isDark =
@@ -452,8 +452,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               isDark
                   ? 'assets/images/4K-HDWHITE.png'
                   : 'assets/images/4K-HDBLACK.png',
-              width: Genel.genislik * 0.5,
-              height: Genel.genislik * 0.3,
+              width: Genel.width * 0.5,
+              height: Genel.width * 0.3,
             ),
           ),
         ),
@@ -713,3 +713,5 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 }
+
+

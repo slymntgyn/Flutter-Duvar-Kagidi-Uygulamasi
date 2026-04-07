@@ -11,26 +11,26 @@ import 'package:senseriduvarkagidi/ek/yardimci.dart';
 class KategoriList {
   int id = 0;
   String kategori = "";
-  String kategorI_RESMI = "";
+  String categoryImage = "";
 
   KategoriList.fromJson(Map<String, dynamic> json) {
     id = json['id'] as int? ?? 0;
     kategori = json['kategori'] as String? ?? '';
-    kategorI_RESMI = json['kategorI_RESMI'] as String? ?? '';
+    categoryImage = json['categoryImage'] as String? ?? '';
   }
 
-  static Future<List<KategoriList>?> GetKategoriler(
+  static Future<List<KategoriList>?> getCategories(
       BuildContext context) async {
     try {
-      Result_Get result =
-          await Restful.Get_Request(ApiConstants.baseUrl, context, "kategori");
+      ResultGet result =
+          await Restful.getRequest(ApiConstants.baseUrl, context, "kategori");
 
       if (!context.mounted) {
         return null;
       }
 
       if (result.hata) {
-        Yardimci.AlertDialogError(
+        Yardimci.showErrorDialog(
             context, "Hata Oluştu", "Lütfen daha sonra tekrar deneyin");
       } else {
         if (result.sonuc != "") {
@@ -40,9 +40,9 @@ class KategoriList {
             debugPrint('Kategori raw JSON: $json');
             list.add(KategoriList.fromJson(json));
           }
-          Genel.Kategoriler = List<KategoriList>.from(list);
+          Genel.categories = List<KategoriList>.from(list);
 
-          debugPrint('object${Genel.Resimler}');
+          debugPrint('object${Genel.images}');
 
           return list;
         }
@@ -51,14 +51,14 @@ class KategoriList {
       if (!context.mounted) {
         return null;
       }
-      Yardimci.AlertDialogError(
+      Yardimci.showErrorDialog(
           context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyiniz");
       return null;
     }
     return null;
   }
 
-  static Future<void> ReklamYukle(BuildContext context) async {
+  static Future<void> loadRewardedAd(BuildContext context) async {
     RewardedAd.load(
         adUnitId: Genel.adUnitId,
         request: const AdRequest(),
@@ -68,7 +68,7 @@ class KategoriList {
             debugPrint('$ad loaded.');
             // Keep a reference to the ad so you can show it later.
 
-            Genel.reklam = ad;
+            Genel.rewardedAd = ad;
           },
 
           // Called when an ad request failed.
@@ -78,3 +78,4 @@ class KategoriList {
         ));
   }
 }
+

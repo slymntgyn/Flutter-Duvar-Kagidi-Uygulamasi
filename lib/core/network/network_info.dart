@@ -16,3 +16,4 @@ class NetworkInfoImpl implements NetworkInfo {
     return !result.contains(ConnectivityResult.none);
   }
 }
+

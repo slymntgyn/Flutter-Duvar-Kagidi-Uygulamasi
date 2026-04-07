@@ -1,3 +1,4 @@
+
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
@@ -21,7 +22,7 @@ import 'package:senseriduvarkagidi/core/utils/error_message_mapper.dart';
 import 'package:senseriduvarkagidi/core/widgets/error_view.dart';
 import 'package:senseriduvarkagidi/core/widgets/loading_overlay.dart';
 import 'package:senseriduvarkagidi/model/image.dart';
-import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
+import 'package:senseriduvarkagidi/model/kullanici_model.dart';
 import 'package:senseriduvarkagidi/model/kategoriler.dart';
 import 'package:senseriduvarkagidi/core/widgets/wallpaper_location_dialog.dart';
 import 'package:senseriduvarkagidi/features/favorites/presentation/providers/favorites_provider.dart';
@@ -70,7 +71,7 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
   void refresh() => ref.invalidate(wallpapersProvider);
 
   void _syncFavoritesProviderFromLegacyCache() {
-    final ids = Genel.favoriresimler
+    final ids = Genel.favoriteImages
         .map((e) => int.tryParse(e) ?? 0)
         .where((id) => id > 0)
         .toList();
@@ -344,13 +345,13 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
     final isLong = index % 3 == 0;
     final height = isLong ? 260.0 : 200.0;
     final heroTag = 'fav_${imageData.id}';
-    final imageUrl = ayarlar.buildImageUrl(imageData.yol);
+    final imageUrl = LegacyAyarlar.buildImageUrl(imageData.yol);
 
     return Dismissible(
       key: ValueKey(imageData.id),
       direction: DismissDirection.endToStart,
       confirmDismiss: (direction) async {
-        return showDialog<bool>(
+        final bool shouldDismiss = await showDialog<bool>(
               context: context,
               builder: (ctx) => AlertDialog(
                 title: const Text('Favoriden cikarilsin mi?'),
@@ -369,6 +370,8 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
               ),
             ) ??
             false;
+
+        return shouldDismiss;
       },
       background: Container(
         alignment: Alignment.centerRight,
@@ -380,75 +383,85 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
         child: const Icon(Icons.delete_rounded, color: Colors.white, size: 28),
       ),
       onDismissed: (direction) => _removeFavoriteWithUndo(imageData),
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (ctx, anim, secAnim) => ImageDetailScreen(
-                image: imageData,
-                heroTag: heroTag,
-              ),
-              transitionsBuilder: (ctx, anim, secAnim, child) {
-                return FadeTransition(opacity: anim, child: child);
-              },
-            ),
-          ).then((_) => _syncFavoritesProviderFromLegacyCache());
-        },
-        onLongPress: () => _showContextMenu(imageData),
-        child: Hero(
-          tag: heroTag,
-          child: Container(
-            height: height,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (ctx, anim, secAnim) => ImageDetailScreen(
+                  image: imageData,
+                  heroTag: heroTag,
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  imageUrl.isEmpty
-                      ? Container(
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.image_not_supported_outlined),
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) =>
-                              Container(color: Colors.grey[300]),
-                          errorWidget: (context, url, error) =>
-                              Container(color: Colors.grey[300]),
-                        ),
-                  // Favorite badge
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                              color: Colors.red.withValues(alpha: 0.4),
-                              blurRadius: 8)
-                        ],
-                      ),
-                      child: const Icon(Icons.favorite,
-                          color: Colors.white, size: 14),
-                    ),
+                transitionsBuilder: (ctx, anim, secAnim, child) {
+                  final Animation<double> fadeAnimation = CurvedAnimation(
+                    parent: anim,
+                    curve: Curves.easeOut,
+                  );
+                  return FadeTransition(opacity: fadeAnimation, child: child);
+                },
+                transitionDuration: const Duration(milliseconds: 280),
+              ),
+            ).then((_) => _syncFavoritesProviderFromLegacyCache());
+          },
+          onLongPress: () => _showContextMenu(imageData),
+          borderRadius: BorderRadius.circular(16),
+          child: Hero(
+            tag: heroTag,
+            child: Container(
+              height: height,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    imageUrl.isEmpty
+                        ? Container(
+                            color: Colors.grey[300],
+                            child:
+                                const Icon(Icons.image_not_supported_outlined),
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) =>
+                                Container(color: Colors.grey[300]),
+                            errorWidget: (context, url, error) =>
+                                Container(color: Colors.grey[300]),
+                          ),
+                    // Favorite badge
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.red.withValues(alpha: 0.4),
+                                blurRadius: 8)
+                          ],
+                        ),
+                        child: const Icon(Icons.favorite,
+                            color: Colors.white, size: 14),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -474,8 +487,8 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
   void _removeFavoriteWithUndo(ImageList imageData) async {
     final removed = imageData;
     try {
-      await ImageList.FavorilereEkle(context, imageData.id);
-      Yardimci.favori_resim_ekle(imageData.id.toString());
+      await ImageList.toggleFavorite(context, imageData.id);
+      Yardimci.toggleFavoriteImage(imageData.id.toString());
       _syncFavoritesProviderFromLegacyCache();
     } catch (e) {
       debugPrint('Remove favorite error: $e');
@@ -494,8 +507,8 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
             textColor: Colors.white,
             onPressed: () async {
               try {
-                await ImageList.FavorilereEkle(context, removed.id);
-                Yardimci.favori_resim_ekle(removed.id.toString());
+                await ImageList.toggleFavorite(context, removed.id);
+                Yardimci.toggleFavoriteImage(removed.id.toString());
                 _syncFavoritesProviderFromLegacyCache();
               } catch (_) {}
             },
@@ -576,7 +589,7 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
   void _setWallpaperWithConfirmation(ImageList imageData) {
     if (_isWallpaperProcessing) return;
     HapticFeedback.lightImpact();
-    if (ayarlar.odullureklamacikmi == '1') {
+    if (LegacyAyarlar.rewardedAdsEnabled == '1') {
       _showRewardedAdForWallpaper(imageData);
     } else {
       _showWallpaperLocationDialog(imageData);
@@ -584,14 +597,14 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
   }
 
   void _showRewardedAdForWallpaper(ImageList imageData) {
-    if (Genel.reklam == null) {
+    if (Genel.rewardedAd == null) {
       _showWallpaperLocationDialog(imageData);
-      KategoriList.ReklamYukle(context);
+      KategoriList.loadRewardedAd(context);
     } else {
-      Genel.reklam?.show(onUserEarnedReward: (ad, rewardItem) {
+      Genel.rewardedAd?.show(onUserEarnedReward: (ad, rewardItem) {
         ad.dispose();
         _showWallpaperLocationDialog(imageData);
-        KategoriList.ReklamYukle(context);
+        KategoriList.loadRewardedAd(context);
       });
     }
   }
@@ -613,7 +626,7 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
         _processingStep = 'Resim hazirlaniyor';
         _downloadProgress = null;
       });
-      final url = ayarlar.buildImageUrl(imageData.yol);
+      final url = LegacyAyarlar.buildImageUrl(imageData.yol);
       final file = await DefaultCacheManager().getSingleFile(url);
       if (mounted) {
         setState(() {
@@ -626,8 +639,8 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
       if (result == 'Wallpaper set successfully' ||
           (result ?? '').contains('success')) {
         try {
-          await Kullanici.IslemLog(
-              context, Genel.CihazId, 'Duvar Kagidi Yapma', imageData.id);
+          await Kullanici.logAction(
+              context, Genel.deviceId, 'Duvar Kagidi Yapma', imageData.id);
         } catch (_) {}
         _showSuccessAlert('Duvar kagidi basariyla ayarlandi!');
       } else {
@@ -653,7 +666,7 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
   // ---------------------------------------------------------------------------
   void _downloadImageData(ImageList imageData) {
     HapticFeedback.lightImpact();
-    if (ayarlar.odullureklamacikmi == '1') {
+    if (LegacyAyarlar.rewardedAdsEnabled == '1') {
       _showRewardedAdForDownload(imageData);
     } else {
       _download(imageData);
@@ -661,14 +674,14 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
   }
 
   void _showRewardedAdForDownload(ImageList imageData) {
-    if (Genel.reklam == null) {
+    if (Genel.rewardedAd == null) {
       _download(imageData);
-      KategoriList.ReklamYukle(context);
+      KategoriList.loadRewardedAd(context);
     } else {
-      Genel.reklam?.show(onUserEarnedReward: (ad, rewardItem) {
+      Genel.rewardedAd?.show(onUserEarnedReward: (ad, rewardItem) {
         ad.dispose();
         _download(imageData);
-        KategoriList.ReklamYukle(context);
+        KategoriList.loadRewardedAd(context);
       });
     }
   }
@@ -681,7 +694,7 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
         _processingStep = 'Dosya indiriliyor';
         _downloadProgress = null;
       });
-      final imageUrl = ayarlar.buildImageUrl(imageData.yol);
+      final imageUrl = LegacyAyarlar.buildImageUrl(imageData.yol);
       final now = DateTime.now();
       final response = await ref.read(dioClientProvider).externalGet<List<int>>(
         imageUrl,
@@ -707,8 +720,8 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
       if (!mounted) return;
       if (asset.id.isNotEmpty) {
         try {
-          await Kullanici.IslemLog(
-              context, Genel.CihazId, 'Download', imageData.id);
+          await Kullanici.logAction(
+              context, Genel.deviceId, 'Download', imageData.id);
         } catch (_) {}
         _showSuccessAlert('Resim basariyla indirildi!');
       } else {
@@ -748,3 +761,5 @@ class FavoritesTabState extends ConsumerState<FavoritesTab>
         confirmBtnColor: Colors.red);
   }
 }
+
+

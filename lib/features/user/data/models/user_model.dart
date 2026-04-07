@@ -10,7 +10,7 @@ class UserModel extends User {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     final permissionsStr = json['yetkiler'] as String? ?? '';
-    final favoritesStr = json['favorI_RESIMLER'] as String? ?? '';
+    final favoritesStr = json['favoriteImagesRaw'] as String? ?? '';
 
     return UserModel(
       permissions: permissionsStr
@@ -26,3 +26,4 @@ class UserModel extends User {
     );
   }
 }
+

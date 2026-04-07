@@ -42,3 +42,4 @@ class SharedPrefsStorage implements LocalStorage {
   @override
   Future<void> remove(String key) async => _prefs.remove(key);
 }
+

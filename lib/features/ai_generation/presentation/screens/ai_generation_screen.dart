@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,7 +21,7 @@ import 'package:senseriduvarkagidi/ek/ayarlar.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/screens/premium_paywall_screen.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
-import 'package:senseriduvarkagidi/model/KullaniciModel.dart';
+import 'package:senseriduvarkagidi/model/kullanici_model.dart';
 
 // ---------------------------------------------------------------------------
 // Style data model
@@ -174,7 +173,7 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     if (!Platform.isAndroid && !Platform.isIOS) return;
 
     _bannerAd = BannerAd(
-      adUnitId: ayarlar.bannerReklamId,
+      adUnitId: LegacyAyarlar.bannerAdUnitId,
       request: const AdRequest(),
       size: AdSize.banner,
       listener: BannerAdListener(
@@ -225,8 +224,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
       final request = GenerationRequest(
         prompt: prompt,
         style: _selectedStyle,
-        width: Genel.genislik,
-        height: Genel.yukseklik,
+        width: Genel.width,
+        height: Genel.height,
       );
 
       await ref.read(aiGenerationProvider.notifier).generate(request);
@@ -407,8 +406,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
       if (!mounted) return;
 
       if (result != null && result.isEmpty) {
-        await Kullanici.IslemLog(
-            context, Genel.CihazId, 'AI Duvar Kagidi Yapma', 0);
+        await Kullanici.logAction(
+            context, Genel.deviceId, 'AI Duvar Kagidi Yapma', 0);
 
         final locationText = switch (wallpaperLocation) {
           1 => 'ana ekrana',
@@ -450,7 +449,7 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
       if (!mounted) return;
 
       if (asset.id.isNotEmpty) {
-        await Kullanici.IslemLog(context, Genel.CihazId, 'AI Download', 0);
+        await Kullanici.logAction(context, Genel.deviceId, 'AI Download', 0);
         _showSuccess('AI duvar kagidi galeriye kaydedildi!');
       } else {
         _showError('Resim indirilemedi.');
@@ -1608,3 +1607,5 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     );
   }
 }
+
+

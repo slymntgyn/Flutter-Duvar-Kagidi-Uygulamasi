@@ -32,3 +32,4 @@ class UserRepositoryImpl implements UserRepository {
     }
   }
 }
+

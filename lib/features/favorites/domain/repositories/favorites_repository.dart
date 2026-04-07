@@ -5,3 +5,4 @@ abstract class FavoritesRepository {
   /// Favorilere resim ekler/cikarir (toggle).
   Future<Result<void>> toggleFavorite(String deviceId, int imageId);
 }
+

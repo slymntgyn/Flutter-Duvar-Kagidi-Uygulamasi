@@ -25,11 +25,12 @@ class CategoryRepositoryImpl implements CategoryRepository {
         return Success(categories);
       }
       return Error(ServerFailure(
-        'Kategoriler yüklenemedi',
+        'categories yüklenemedi',
         statusCode: response.statusCode,
       ));
     } catch (e) {
-      return Error(NetworkFailure('Kategoriler yüklenirken hata: $e'));
+      return Error(NetworkFailure('categories yüklenirken hata: $e'));
     }
   }
 }
+

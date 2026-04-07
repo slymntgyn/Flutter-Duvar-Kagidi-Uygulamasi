@@ -134,3 +134,4 @@ class _EmptyAIService implements AIImageService {
     throw const AIServiceException('OpenAI API anahtari tanimli degil');
   }
 }
+

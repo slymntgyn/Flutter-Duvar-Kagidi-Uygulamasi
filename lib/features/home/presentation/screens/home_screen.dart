@@ -1,5 +1,6 @@
-import 'dart:io';
 import 'dart:ui';
+
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -30,7 +31,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   BannerAd? _bannerAd;
   bool _isBannerAdReady = false;
 
-  // 0: Kesfet, 1: Kategoriler, 2: Favoriler, 3: Ayarlar
+  // 0: Kesfet, 1: categories, 2: Favoriler, 3: Ayarlar
   int _selectedIndex = 0;
 
   @override
@@ -61,7 +62,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _initializeBannerAd() {
     if (!Platform.isAndroid && !Platform.isIOS) return;
     _bannerAd = BannerAd(
-      adUnitId: ayarlar.bannerReklamId,
+      adUnitId: LegacyAyarlar.bannerAdUnitId,
       request: const AdRequest(),
       size: AdSize.banner,
       listener: BannerAdListener(
@@ -233,7 +234,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 _buildNavItem(0, Icons.explore_outlined, Icons.explore,
                     'Kesfet', Colors.blue),
                 _buildNavItem(1, Icons.grid_view_outlined, Icons.grid_view,
-                    'Kategoriler', Colors.orange),
+                    'categories', Colors.orange),
                 const SizedBox(width: 64),
                 _buildNavItem(2, Icons.favorite_outline, Icons.favorite,
                     'Favoriler', Colors.red),
@@ -318,3 +319,4 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 }
+

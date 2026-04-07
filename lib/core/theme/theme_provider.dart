@@ -35,3 +35,4 @@ class ThemeNotifier extends StateNotifier<AppThemeMode> {
     await setTheme(next);
   }
 }
+

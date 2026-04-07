@@ -36,7 +36,7 @@ class WallpaperLocationDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.teal.withOpacity(0.1),
+              color: Colors.teal.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.wallpaper_rounded,
@@ -63,7 +63,7 @@ class WallpaperLocationDialog extends StatelessWidget {
                       .textTheme
                       .bodyMedium
                       ?.color
-                      ?.withOpacity(0.8),
+                      ?.withValues(alpha: 0.8),
                 ),
           ),
           if (subtitle != null) ...[
@@ -71,9 +71,9 @@ class WallpaperLocationDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -127,7 +127,7 @@ class WallpaperLocationDialog extends StatelessWidget {
                   .textTheme
                   .bodyMedium
                   ?.color
-                  ?.withOpacity(0.6),
+                  ?.withValues(alpha: 0.6),
             ),
           ),
         ),
@@ -154,7 +154,7 @@ class WallpaperLocationDialog extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             border: Border.all(
-              color: Theme.of(context).dividerColor.withOpacity(0.3),
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
             ),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -163,7 +163,7 @@ class WallpaperLocationDialog extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.1),
+                  color: Colors.teal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: Colors.teal, size: 20),
@@ -185,7 +185,7 @@ class WallpaperLocationDialog extends StatelessWidget {
                                   .textTheme
                                   .bodySmall
                                   ?.color
-                                  ?.withOpacity(0.7),
+                                  ?.withValues(alpha: 0.7),
                             )),
                   ],
                 ),
@@ -196,7 +196,7 @@ class WallpaperLocationDialog extends StatelessWidget {
                       .textTheme
                       .bodyMedium
                       ?.color
-                      ?.withOpacity(0.4)),
+                      ?.withValues(alpha: 0.4)),
             ],
           ),
         ),
@@ -204,3 +204,5 @@ class WallpaperLocationDialog extends StatelessWidget {
     );
   }
 }
+
+

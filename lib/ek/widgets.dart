@@ -4,33 +4,37 @@ import 'package:flutter/material.dart';
 import 'genel.dart';
 
 class Widgets {
-
-  static Widget Progress() {
-    return Container(
-        height: Genel.yukseklik,
-        width: Genel.genislik,
+  static Widget progressOverlay() {
+    return SizedBox(
+      height: Genel.height,
+      width: Genel.width,
+      child: ColoredBox(
         color: Colors.black87,
         child: Center(
-            child: Card(
-                shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(20))),
-                elevation: 8,
-                child: Container(
-                    padding: const EdgeInsets.fromLTRB(4, 4, 16, 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                            child: Image.asset(
-                          "assets/images/load.gif",
-                          width: 70,
-                        )),
-
-                      ],
-                    )))));
+          child: Card(
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(20)),
+            ),
+            elevation: 8,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 16, 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    "assets/images/load.gif",
+                    width: 70,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
-  static Widget CardTasarimi()
+  static Widget cardDesign()
   {
     return
       ListTile(
@@ -169,3 +173,4 @@ class Widgets {
   }
 
 }
+

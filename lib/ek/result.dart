@@ -1,17 +1,17 @@
-class Result_Post{
-  bool giris_hata=false;
+class ResultPost{
+  bool girisHata=false;
   bool hata=false;
   String hataMesaji="";
   bool sonuc=false;
 }
-class Result_Post2{
-  bool giris_hata=false;
+class ResultPost2{
+  bool girisHata=false;
   bool hata=false;
   String hataMesaji="";
   String sonuc="";
 }
-class Result_Get{
-  bool giris_hata=false;
+class ResultGet{
+  bool girisHata=false;
   bool hata=false;
   String hataMesaji="";
   String sonuc="";

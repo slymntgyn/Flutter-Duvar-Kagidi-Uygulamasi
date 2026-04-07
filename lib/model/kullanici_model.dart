@@ -8,57 +8,57 @@ import 'package:senseriduvarkagidi/ek/yardimci.dart';
 
 class Kullanici {
   String yetkiler = "";
-  String favorI_RESIMLER = "";
+  String favoriteImagesRaw = "";
 
   Kullanici.fromJson(Map<String, dynamic> json) {
     yetkiler = json['yetkiler'] as String? ?? '';
-    favorI_RESIMLER = json['favorI_RESIMLER'] as String? ?? '';
+    favoriteImagesRaw = json['favoriteImagesRaw'] as String? ?? '';
   }
 
-  static Future<Kullanici?> Kullanici_Getir(BuildContext context) async {
+  static Future<Kullanici?> getUser(BuildContext context) async {
     try {
-      print(Genel.CihazId);
-      Genel.CihazId = Genel.CihazId.replaceAll('/', '');
-      Genel.CihazId = Genel.CihazId.replaceAll('<', '');
-      Result_Get result = await Restful.Get_Request(Genel.web_api_link, context,
-          "kullanici/${Genel.CihazId.replaceAll('/', '')}");
+      debugPrint(Genel.deviceId);
+      Genel.deviceId = Genel.deviceId.replaceAll('/', '');
+      Genel.deviceId = Genel.deviceId.replaceAll('<', '');
+      ResultGet result = await Restful.getRequest(Genel.webApiLink, context,
+          "kullanici/${Genel.deviceId.replaceAll('/', '')}");
       if (!context.mounted) {
         return null;
       }
       if (result.hata) {
-        print('>>>> result.hata${result.hata}');
-        Yardimci.AlertDialogError(
+        debugPrint('>>>> result.hata${result.hata}');
+        Yardimci.showErrorDialog(
             context, "Hata Oluştu", "Lütfen daha sonra tekrar deneyiniz");
       } else {
         if (result.sonuc != "") {
           var jsonlist = jsonDecode(result.sonuc.toString());
           Kullanici item = (Kullanici.fromJson(jsonlist));
-          Yardimci.Yetkileri_Yukle(item.yetkiler);
-          Yardimci.favori_resimleri_Yukle(item.favorI_RESIMLER);
+          Yardimci.loadPermissions(item.yetkiler);
+          Yardimci.loadFavoriteImages(item.favoriteImagesRaw);
 
-          print(Genel.yetkiler);
+          debugPrint(Genel.yetkiler.toString());
 
           return item;
         }
       }
     } catch (error) {
-      print("Hata$error");
+      debugPrint("Hata$error");
       if (!context.mounted) {
         return null;
       }
-      Yardimci.AlertDialogError(
+      Yardimci.showErrorDialog(
           context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyiniz");
     }
     return null;
   }
 
-  static Future<String?> IslemLog(
-      BuildContext context, String CihazId, String Islem, int Resim) async {
+  static Future<String?> logAction(
+      BuildContext context, String deviceId, String action, int imageId) async {
     try {
-      Result_Get result = await Restful.Get_Request(Genel.web_api_link, context,
-          "kullanici/${Genel.CihazId}/islem/$Islem/$Resim");
+      ResultGet result = await Restful.getRequest(Genel.webApiLink, context,
+          "kullanici/${Genel.deviceId}/islem/$action/$imageId");
 
-      print(result);
+      debugPrint(result.toString());
 
       if (result.hata) {
         return "Hata ";
@@ -70,3 +70,5 @@ class Kullanici {
     }
   }
 }
+
+

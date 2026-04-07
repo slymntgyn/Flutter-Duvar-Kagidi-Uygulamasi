@@ -13,10 +13,10 @@ class Ayarlar {
     adi = json['adi'] as String? ?? "";
     deger = json['deger'] as String? ?? "";
   }
-  static Future<List<Ayarlar>?> Ayarlari_Getir(BuildContext context) async {
+  static Future<List<Ayarlar>?> getSettings(BuildContext context) async {
     try {
-      Result_Get result =
-          await Restful.Get_Request(ApiConstants.baseUrl, context, "ayar");
+      ResultGet result =
+          await Restful.getRequest(ApiConstants.baseUrl, context, "ayar");
       if (!context.mounted) {
         return null;
       }
@@ -35,9 +35,11 @@ class Ayarlar {
       if (!context.mounted) {
         return null;
       }
-      Yardimci.AlertDialogError(
+      Yardimci.showErrorDialog(
           context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyin");
     }
     return null;
   }
 }
+
+

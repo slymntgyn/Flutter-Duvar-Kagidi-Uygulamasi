@@ -52,3 +52,4 @@ String mapErrorMessage(Object error) {
 
   return 'Bir sorun olustu. Lutfen tekrar dene.';
 }
+

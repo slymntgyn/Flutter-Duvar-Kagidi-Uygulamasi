@@ -26,3 +26,4 @@ class FavoritesRepositoryImpl implements FavoritesRepository {
     }
   }
 }
+
