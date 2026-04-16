@@ -53,7 +53,7 @@ class PremiumStatus {
   factory PremiumStatus.pro() {
     return const PremiumStatus(
       tier: PremiumTier.pro,
-      dailyAiLimit: 999,
+      dailyAiLimit: 3,
       canUseProStyles: true,
       adFree: true,
     );

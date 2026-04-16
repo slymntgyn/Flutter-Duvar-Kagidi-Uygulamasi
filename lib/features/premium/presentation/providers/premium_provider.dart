@@ -40,7 +40,7 @@ class PremiumNotifier extends StateNotifier<PremiumStatus> {
 
     state = PremiumStatus(
       tier: tier,
-      dailyAiLimit: tier == PremiumTier.pro ? 999 : 3,
+      dailyAiLimit: 3,
       dailyAiUsed: usedToday,
       canUseProStyles: tier == PremiumTier.pro,
       adFree: tier == PremiumTier.pro,

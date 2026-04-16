@@ -8,7 +8,19 @@ class SettingsModel {
     String getValue(String key) {
       for (final item in list) {
         final adi = (item['adi'] ?? item['ADI'] ?? '').toString();
-        if (adi == key) return (item['deger'] ?? item['DEGER'] ?? '').toString();
+        if (adi == key) {
+          return (item['deger'] ?? item['DEGER'] ?? '').toString();
+        }
+      }
+      return '';
+    }
+
+    String getFirstNonEmptyValue(List<String> keys) {
+      for (final key in keys) {
+        final value = getValue(key).trim();
+        if (value.isNotEmpty) {
+          return value;
+        }
       }
       return '';
     }
@@ -20,6 +32,22 @@ class SettingsModel {
 
     int getInt(String key) => int.tryParse(getValue(key)) ?? 0;
 
+    int getAiLimit() => getInt('AI DUVAR KAĞIDI URETME LIMIT');
+
+    final aiProvider = getFirstNonEmptyValue(
+      const ['AI_PROVIDER', 'AI PROVIDER'],
+    ).toLowerCase();
+    final aiApiKey = getFirstNonEmptyValue(
+      const ['AI_API_KEY', 'AI API KEY', 'OPENAI API KEY'],
+    );
+    final aiModel = getFirstNonEmptyValue(
+      const [
+        'AI_DUVAR_KAGIDI_URETME_MODEL',
+        'AI DUVAR KAGIDI URETME MODEL',
+        'OPENAI MODEL',
+      ],
+    );
+
     return AppSettings(
       imageServerUrl: getValue('RESIM SUNUCUSU'),
       isMaintenanceMode: getBool('BAKIM VAR MI'),
@@ -28,20 +56,12 @@ class SettingsModel {
       bannerAdId: getValue('BANNER REKLAM ID'),
       isBannerAdEnabled: getBool('BANNER REKLAM ACIK MI'),
       telegramLink: getValue('TELEGRAM BUTON LINKI'),
-      // OpenRouter
-      aiApiKey: getValue('AI API KEY'),
-      aiDailyLimit: getInt('AI DUVAR KAGIDI URETME LIMIT'),
-      aiModel: getValue('AI DUVAR KAGIDI URETME MODEL'),
-      // OpenAI
-      openAiApiKey: getValue('OPENAI API KEY'),
-      openAiModel: getValue('OPENAI MODEL').isNotEmpty
-          ? getValue('OPENAI MODEL')
-          : 'dall-e-3',
-      // Provider secimi: 'openrouter' veya 'openai'
-      aiProvider: getValue('AI PROVIDER').isNotEmpty
-          ? getValue('AI PROVIDER')
-          : 'openrouter',
+      aiApiKey: aiApiKey,
+      aiDailyLimit: getAiLimit(),
+      aiModel: aiModel,
+      openAiApiKey: aiApiKey,
+      openAiModel: aiModel.isNotEmpty ? aiModel : 'dall-e-3',
+      aiProvider: aiProvider.isNotEmpty ? aiProvider : 'openai',
     );
   }
 }
-

@@ -24,6 +24,7 @@ import 'package:senseriduvarkagidi/features/user/domain/repositories/user_reposi
 
 import 'package:senseriduvarkagidi/core/errors/exceptions.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/data/services/openai_ai_service.dart';
+import 'package:senseriduvarkagidi/features/ai_generation/data/services/openrouter_ai_service.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/domain/services/ai_image_service.dart';
 import 'package:senseriduvarkagidi/features/settings/domain/entities/app_settings.dart';
 import 'package:senseriduvarkagidi/core/errors/result.dart';
@@ -105,19 +106,32 @@ final userRepositoryProvider = Provider<UserRepository>((ref) {
 
 // ==================== AI Service ====================
 
-/// AI gorsel uretim servisi - OpenAI DALL-E kullanir.
+/// AI gorsel uretim servisi.
+/// AI_PROVIDER ayarina gore OpenAI veya OpenRouter secilir.
 final aiImageServiceProvider = Provider<AIImageService>((ref) {
   final settings = ref.watch(appSettingsProvider).valueOrNull;
 
-  if (settings == null || settings.openAiApiKey.isEmpty) {
-    // API key henuz yuklenmedi veya tanimli degil
+  if (settings == null || settings.aiApiKey.isEmpty) {
     return _EmptyAIService();
   }
 
-  return OpenAIAIService(
+  final provider = settings.aiProvider.trim().toLowerCase();
+  final model = settings.aiModel.trim().isNotEmpty
+      ? settings.aiModel.trim()
+      : 'dall-e-3';
+
+  if (provider == 'openrouter') {
+    return OpenRouterImageService(
+      dioClient: ref.read(dioClientProvider),
+      apiKey: settings.aiApiKey,
+      model: model,
+    );
+  }
+
+  return OpenAIImageService(
     dioClient: ref.read(dioClientProvider),
-    apiKey: settings.openAiApiKey,
-    model: settings.openAiModel.isNotEmpty ? settings.openAiModel : 'dall-e-3',
+    apiKey: settings.aiApiKey,
+    model: model,
   );
 });
 
@@ -131,7 +145,7 @@ class _EmptyAIService implements AIImageService {
 
   @override
   Future<Uint8List> generateImage(dynamic request) async {
-    throw const AIServiceException('OpenAI API anahtari tanimli degil');
+    throw const AIServiceException('AI API anahtari tanimli degil');
   }
 }
 

@@ -18,6 +18,7 @@ import 'package:senseriduvarkagidi/features/ai_generation/domain/entities/genera
 
 // Backward compatibility imports
 import 'package:senseriduvarkagidi/ek/ayarlar.dart';
+import 'package:senseriduvarkagidi/features/premium/domain/entities/premium_status.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/screens/premium_paywall_screen.dart';
 import 'package:senseriduvarkagidi/ek/genel.dart';
@@ -204,9 +205,9 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     });
 
     try {
-      // Premium limit kontrolu
+      // AI uretimi sadece premium kullanicilar icin acik.
       final premiumStatus = ref.read(premiumProvider);
-      if (!premiumStatus.canGenerate) {
+      if (!premiumStatus.isPro) {
         HapticFeedback.mediumImpact();
         Navigator.push(
           context,
@@ -214,6 +215,14 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
         );
         return;
       }
+
+      final limitState = ref.read(dailyLimitProvider);
+      if (limitState.isExhausted) {
+        HapticFeedback.lightImpact();
+        _showError('Gunluk AI uretim limitiniz doldu.');
+        return;
+      }
+
       final limitNotifier = ref.read(dailyLimitProvider.notifier);
 
       HapticFeedback.mediumImpact();
@@ -546,6 +555,7 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
   Widget build(BuildContext context) {
     final genState = ref.watch(aiGenerationProvider);
     final limitState = ref.watch(dailyLimitProvider);
+    final premiumStatus = ref.watch(premiumProvider);
     final history = ref.watch(generationHistoryProvider);
     final theme = Theme.of(context);
 
@@ -573,7 +583,7 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
                   children: [
                     _buildHeaderCard(theme),
                     const SizedBox(height: 16),
-                    _buildDailyLimitCard(theme, limitState),
+                    _buildDailyLimitCard(theme, limitState, premiumStatus),
                     const SizedBox(height: 16),
                     _buildStyleSelector(theme),
                     const SizedBox(height: 16),
@@ -581,7 +591,8 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
                     const SizedBox(height: 16),
                     _buildPromptSuggestions(theme),
                     const SizedBox(height: 20),
-                    _buildGenerateButton(theme, genState),
+                    _buildGenerateButton(
+                        theme, genState, premiumStatus, limitState),
                     const SizedBox(height: 20),
                     _buildResultSection(theme, genState),
                     if (history.isNotEmpty) ...[
@@ -721,11 +732,17 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
   // Daily limit card
   // -------------------------------------------------------------------------
 
-  Widget _buildDailyLimitCard(ThemeData theme, DailyLimitState limitState) {
-    final remaining = limitState.remaining;
-    final limit = limitState.limit;
+  Widget _buildDailyLimitCard(
+    ThemeData theme,
+    DailyLimitState limitState,
+    PremiumStatus premiumStatus,
+  ) {
+    final remaining = premiumStatus.isPro ? limitState.remaining : 0;
+    final limit = premiumStatus.isPro ? limitState.limit : 0;
     final isExhausted = limitState.isExhausted;
-    final statusColor = isExhausted ? Colors.red : Colors.green;
+    final statusColor = premiumStatus.isPro
+        ? (isExhausted ? Colors.red : Colors.green)
+        : Colors.orange;
     final progress =
         limit > 0 ? (limitState.used / limit).clamp(0.0, 1.0) : 0.0;
 
@@ -766,9 +783,11 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      isExhausted
+                      premiumStatus.isPro
+                        ? (isExhausted
                           ? 'Gunluk limitiniz doldu. Yarin tekrar deneyin.'
-                          : 'Bugun $remaining uretim hakkiniz kaldi.',
+                          : 'Bugun $remaining uretim hakkiniz kaldi.')
+                        : 'Premium uyelikle gunluk 3 uretim hakki kazanirsiniz.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.textTheme.bodySmall?.color
                             ?.withValues(alpha: 0.7),
@@ -1079,10 +1098,18 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
   // Generate button
   // -------------------------------------------------------------------------
 
-  Widget _buildGenerateButton(ThemeData theme, AIGenerationState genState) {
+  Widget _buildGenerateButton(
+    ThemeData theme,
+    AIGenerationState genState,
+    PremiumStatus premiumStatus,
+    DailyLimitState limitState,
+  ) {
     final isGenerating = genState.isGenerating;
-    final canGenerate =
-        _promptIsNotEmpty && !isGenerating && !_isGenerateLocked;
+    final canGenerate = _promptIsNotEmpty &&
+        premiumStatus.isPro &&
+        !limitState.isExhausted &&
+        !isGenerating &&
+        !_isGenerateLocked;
 
     return SizedBox(
       width: double.infinity,
@@ -1607,5 +1634,3 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     );
   }
 }
-
-

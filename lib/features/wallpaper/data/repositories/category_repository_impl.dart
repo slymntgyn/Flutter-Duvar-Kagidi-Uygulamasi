@@ -29,8 +29,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
         statusCode: response.statusCode,
       ));
     } catch (e) {
-      return Error(NetworkFailure('categories yüklenirken hata: $e'));
+      return Error(NetworkFailure('Kategoriler yüklenirken hata: $e'));
     }
   }
 }
-

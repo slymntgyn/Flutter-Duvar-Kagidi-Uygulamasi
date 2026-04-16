@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:senseriduvarkagidi/core/constants/app_constants.dart';
 import 'package:senseriduvarkagidi/core/di/providers.dart';
+import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
 
 /// Gunluk AI uretim limiti durumu.
 class DailyLimitState {
@@ -27,12 +28,72 @@ class DailyLimitNotifier extends StateNotifier<DailyLimitState> {
   final Ref _ref;
 
   DailyLimitNotifier(this._ref) : super(const DailyLimitState()) {
+    _ref.listen(appSettingsProvider, (_, next) {
+      final int settingsLimit = next.valueOrNull?.aiDailyLimit ?? 0;
+      final bool isPro = _ref.read(premiumProvider).isPro;
+      _applyLimitByMembership(settingsLimit, isPro);
+    });
+    _ref.listen(premiumProvider, (previous, next) {
+      final bool wasPro = previous?.isPro ?? false;
+      final bool isPro = next.isPro;
+      final int settingsLimit =
+          _ref.read(appSettingsProvider).valueOrNull?.aiDailyLimit ?? 0;
+
+      if (!wasPro && isPro) {
+        _resetDailyUsageAndApplyLimit(settingsLimit);
+        return;
+      }
+
+      _applyLimitByMembership(settingsLimit, isPro);
+    });
     _load();
+  }
+
+  int _resolveLimit(int settingsLimit, bool isPro) {
+    if (!isPro) {
+      return 0;
+    }
+
+    if (settingsLimit > 0) {
+      return settingsLimit;
+    }
+
+    return AppConstants.defaultAiDailyLimit;
+  }
+
+  void _applyLimitByMembership(int settingsLimit, bool isPro) {
+    final int resolvedLimit = _resolveLimit(settingsLimit, isPro);
+    final int resolvedUsed = resolvedLimit == 0 ? 0 : state.used;
+
+    if (resolvedLimit == state.limit && resolvedUsed == state.used) {
+      return;
+    }
+
+    state = DailyLimitState(
+      used: resolvedUsed,
+      limit: resolvedLimit,
+      lastDate: state.lastDate,
+    );
+  }
+
+  void _resetDailyUsageAndApplyLimit(int settingsLimit) async {
+    final storage = _ref.read(localStorageProvider);
+    final today = DateTime.now().toIso8601String().split('T')[0];
+
+    await storage.setString(AppConstants.keyLastAiGenDate, today);
+    await storage.setInt(AppConstants.keyAiGenCount, 0);
+
+    state = DailyLimitState(
+      used: 0,
+      limit: _resolveLimit(settingsLimit, true),
+      lastDate: today,
+    );
   }
 
   Future<void> _load() async {
     final storage = _ref.read(localStorageProvider);
     final settings = _ref.read(appSettingsProvider).valueOrNull;
+    final bool isPro = _ref.read(premiumProvider).isPro;
     final today = DateTime.now().toIso8601String().split('T')[0];
     final lastDate =
         await storage.getString(AppConstants.keyLastAiGenDate) ?? '';
@@ -47,8 +108,8 @@ class DailyLimitNotifier extends StateNotifier<DailyLimitState> {
     }
 
     state = DailyLimitState(
-      used: count,
-      limit: settings?.aiDailyLimit ?? AppConstants.defaultAiDailyLimit,
+      used: isPro ? count : 0,
+      limit: _resolveLimit(settings?.aiDailyLimit ?? 0, isPro),
       lastDate: today,
     );
   }
@@ -70,4 +131,3 @@ class DailyLimitNotifier extends StateNotifier<DailyLimitState> {
 
   bool canGenerate() => !state.isExhausted;
 }
-

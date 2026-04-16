@@ -10,12 +10,12 @@ import 'package:senseriduvarkagidi/features/ai_generation/domain/services/ai_ima
 
 /// OpenRouter AI servisi concrete implementasyonu.
 /// Retry ve timeout DioClient tarafindan saglanir.
-class OpenRouterAIService implements AIImageService {
+class OpenRouterImageService implements AIImageService {
   final DioClient _dioClient;
   final String _apiKey;
   final String _model;
 
-  OpenRouterAIService({
+  OpenRouterImageService({
     required DioClient dioClient,
     required String apiKey,
     required String model,

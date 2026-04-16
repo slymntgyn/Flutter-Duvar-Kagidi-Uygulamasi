@@ -78,12 +78,38 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
     );
   }
 
+  Map<int, String> _buildCategoryNameById() {
+    final Map<int, String> categoryNameById = <int, String>{};
+    for (final KategoriList category in Genel.categories) {
+      final String categoryName = category.kategori.trim();
+      if (categoryName.isNotEmpty) {
+        categoryNameById[category.id] = categoryName;
+      }
+    }
+    return categoryNameById;
+  }
+
+  String _formatCategoryText(
+      List<int> categoryIds, Map<int, String> namesById) {
+    if (categoryIds.isEmpty) {
+      return '';
+    }
+    for (final int id in categoryIds) {
+      final String name = namesById[id]?.trim() ?? '';
+      if (name.isNotEmpty) {
+        return name;
+      }
+    }
+    return '';
+  }
+
   List<ImageList> _toLegacyImages(List<WallpaperImage> wallpapers) {
+    final Map<int, String> categoryNameById = _buildCategoryNameById();
     return wallpapers
         .map((w) => ImageList(
               w.id,
               w.path,
-              w.categoryIds.join(';'),
+              _formatCategoryText(w.categoryIds, categoryNameById),
               isPro: w.isPro,
             ))
         .toList();
@@ -201,9 +227,6 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
 
             // Vertical page indicator (right edge)
             _buildPageIndicator(),
-
-            // Page count indicator
-            _buildPageCountIndicator(),
 
             // UX helper for discoverability
             if (_showDoubleTapHint) _buildDoubleTapHint(),
@@ -441,32 +464,6 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
               ),
             );
           }),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPageCountIndicator() {
-    if (_imageList.isEmpty) return const SizedBox.shrink();
-    final current = _currentImageIndex + 1;
-    final total = _imageList.length;
-    return Positioned(
-      top: MediaQuery.of(context).padding.top + 12,
-      right: 16,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-        ),
-        child: Text(
-          '$current/$total',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
         ),
       ),
     );
@@ -978,5 +975,3 @@ class _ExploreTabState extends ConsumerState<ExploreTab>
         confirmBtnColor: Colors.red);
   }
 }
-
-

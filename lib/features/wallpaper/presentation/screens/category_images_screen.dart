@@ -1,4 +1,3 @@
-
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -53,9 +52,11 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
   }
 
   void _loadImages() {
-    final List<ImageList> filtered = Genel.images.where(
-      (ImageList img) => img.kategori == widget.category.id.toString(),
-    ).toList();
+    final List<ImageList> filtered = Genel.images
+        .where(
+          (ImageList img) => img.kategori == widget.category.id.toString(),
+        )
+        .toList();
 
     // If no match by ID, show all (fallback)
     final List<ImageList> list =
@@ -296,37 +297,6 @@ class _CategoryImagesScreenState extends ConsumerState<CategoryImagesScreen>
                 Colors.transparent,
                 Colors.black.withValues(alpha: 0.7),
               ],
-            ),
-          ),
-        ),
-
-        // Image count badge
-        Positioned(
-          top: 16,
-          right: 16,
-          child: SafeArea(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const Icon(
-                    Icons.photo_library_outlined,
-                    color: Colors.white70,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${_images.length} resim',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ],
-              ),
             ),
           ),
         ),
@@ -605,4 +575,3 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     );
   }
 }
-

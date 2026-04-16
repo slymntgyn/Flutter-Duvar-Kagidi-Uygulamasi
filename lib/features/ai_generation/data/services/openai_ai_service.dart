@@ -10,12 +10,12 @@ import 'package:senseriduvarkagidi/features/ai_generation/domain/services/ai_ima
 
 /// OpenAI DALL-E AI servisi implementasyonu.
 /// dall-e-3 veya dall-e-2 modeli kullanir.
-class OpenAIAIService implements AIImageService {
+class OpenAIImageService implements AIImageService {
   final DioClient _dioClient;
   final String _apiKey;
   final String _model;
 
-  OpenAIAIService({
+  OpenAIImageService({
     required DioClient dioClient,
     required String apiKey,
     String model = 'dall-e-3',
@@ -36,20 +36,13 @@ class OpenAIAIService implements AIImageService {
     final enhancedPrompt = PromptEnhancer.enhance(request);
 
     try {
-      // DALL-E 3: 1024x1024, 1024x1792 veya 1792x1024
-      // DALL-E 2: 256x256, 512x512 veya 1024x1024
-      final size = _model == 'dall-e-3' ? '1024x1792' : '1024x1024';
-
       final response = await _dioClient.externalPost(
         ApiConstants.openAiImageGeneration,
         data: {
           'model': _model,
           'prompt': enhancedPrompt,
-          'n': 1,
-          'size': size,
-          'response_format': 'b64_json',
-          'quality': _model == 'dall-e-3' ? 'standard' : null,
-        }..removeWhere((_, v) => v == null),
+          'size': '1024x1792',
+        },
         headers: {
           'Authorization': 'Bearer $_apiKey',
           'Content-Type': 'application/json',
@@ -57,8 +50,7 @@ class OpenAIAIService implements AIImageService {
       );
 
       if (response.statusCode == 200) {
-        final base64String = _extractBase64(response.data);
-        return base64Decode(base64String);
+        return _extractImageBytes(response.data);
       }
 
       throw AIServiceException(
@@ -69,7 +61,7 @@ class OpenAIAIService implements AIImageService {
     }
   }
 
-  String _extractBase64(dynamic responseData) {
+  Future<Uint8List> _extractImageBytes(dynamic responseData) async {
     if (responseData is! Map) {
       throw const AIServiceException('Geçersiz OpenAI API yanıtı');
     }
@@ -87,14 +79,24 @@ class OpenAIAIService implements AIImageService {
     // b64_json formatinda donus
     final b64Json = firstItem['b64_json'];
     if (b64Json != null && b64Json is String && b64Json.isNotEmpty) {
-      return b64Json;
+      return base64Decode(b64Json);
     }
 
-    // URL formatinda donus (b64_json yerine url donuyorsa)
+    // URL formatinda donus
     final url = firstItem['url'];
-    if (url != null && url is String) {
-      throw const AIServiceException(
-          'OpenAI URL formatı desteklenmiyor, b64_json kullanın');
+    if (url != null && url is String && url.isNotEmpty) {
+      final imageResponse = await _dioClient.externalGet<List<int>>(
+        url,
+      );
+
+      final dynamic rawData = imageResponse.data;
+      if (rawData is Uint8List) {
+        return rawData;
+      }
+      if (rawData is List<int>) {
+        return Uint8List.fromList(rawData);
+      }
+      throw const AIServiceException('OpenAI görsel indirilemedi');
     }
 
     throw const AIServiceException('OpenAI API yanıtında görsel bulunamadı');

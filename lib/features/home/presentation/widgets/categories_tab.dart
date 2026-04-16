@@ -296,7 +296,7 @@ class _CategoriesTabState extends ConsumerState<CategoriesTab>
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
-          Text('categories yukleniyor...',
+          Text('Kategoriler yukleniyor...',
               style: TextStyle(color: Colors.grey[500])),
         ],
       ),
@@ -429,7 +429,7 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'categories',
+                            'Kategoriler',
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineMedium
@@ -557,4 +557,3 @@ class _ShimmerBoxState extends State<_ShimmerBox>
     );
   }
 }
-

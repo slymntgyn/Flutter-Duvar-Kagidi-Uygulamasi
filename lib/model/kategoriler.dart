@@ -13,14 +13,42 @@ class KategoriList {
   String kategori = "";
   String categoryImage = "";
 
-  KategoriList.fromJson(Map<String, dynamic> json) {
-    id = json['id'] as int? ?? 0;
-    kategori = json['kategori'] as String? ?? '';
-    categoryImage = json['categoryImage'] as String? ?? '';
+  static String _firstNonEmptyString(
+      Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final value = json[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value;
+      }
+    }
+    return '';
   }
 
-  static Future<List<KategoriList>?> getCategories(
-      BuildContext context) async {
+  static int _parseId(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
+  }
+
+  KategoriList.fromJson(Map<String, dynamic> json) {
+    id = _parseId(json['id']);
+    kategori = json['kategori'] as String? ?? '';
+    categoryImage = _firstNonEmptyString(json, const [
+      'categoryImage',
+      'kategoriResmi',
+      'KATEGORI_RESMI',
+      'kategori_resmi',
+      'resim',
+      'image',
+      'img',
+    ]);
+  }
+
+  static Future<List<KategoriList>?> getCategories(BuildContext context) async {
     try {
       ResultGet result =
           await Restful.getRequest(ApiConstants.baseUrl, context, "kategori");
@@ -78,4 +106,3 @@ class KategoriList {
         ));
   }
 }
-

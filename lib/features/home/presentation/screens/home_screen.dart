@@ -234,7 +234,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 _buildNavItem(0, Icons.explore_outlined, Icons.explore,
                     'Kesfet', Colors.blue),
                 _buildNavItem(1, Icons.grid_view_outlined, Icons.grid_view,
-                    'categories', Colors.orange),
+                    'Kategoriler', Colors.orange),
                 const SizedBox(width: 64),
                 _buildNavItem(2, Icons.favorite_outline, Icons.favorite,
                     'Favoriler', Colors.red),
@@ -319,4 +319,3 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 }
-

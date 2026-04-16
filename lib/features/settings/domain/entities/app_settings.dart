@@ -35,7 +35,7 @@ class AppSettings {
     required this.aiModel,
     this.openAiApiKey = '',
     this.openAiModel = 'dall-e-3',
-    this.aiProvider = 'openrouter',
+    this.aiProvider = 'openai',
   });
 
   /// Bos / default LegacyAyarlar.
@@ -52,7 +52,7 @@ class AppSettings {
     aiModel: '',
     openAiApiKey: '',
     openAiModel: 'dall-e-3',
-    aiProvider: 'openrouter',
+    aiProvider: 'openai',
   );
 
   AppSettings copyWith({
