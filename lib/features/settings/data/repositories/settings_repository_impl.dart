@@ -19,9 +19,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       final response = await _dioClient.get(ApiConstants.getSettings);
       if (response.statusCode == 200) {
         final jsonList = jsonDecode(response.data.toString()) as List;
-        final settingsList = jsonList
-            .map((e) => e as Map<String, dynamic>)
-            .toList();
+        final settingsList =
+            jsonList.map((e) => e as Map<String, dynamic>).toList();
         final settings = SettingsModel.fromSettingsList(settingsList);
         return Success(settings);
       }
@@ -30,8 +29,16 @@ class SettingsRepositoryImpl implements SettingsRepository {
         statusCode: response.statusCode,
       ));
     } catch (e) {
+      final raw = e.toString().toLowerCase();
+      if (raw.contains('xmlhttprequest') ||
+          raw.contains('failed to fetch') ||
+          raw.contains('cors') ||
+          raw.contains('clientexception')) {
+        return const Error(NetworkFailure(
+          'Web API erisimi engellendi (CORS). Sunucuda CORS acin veya WEB_API_BASE_URL/same-origin proxy kullanin.',
+        ));
+      }
       return Error(NetworkFailure('Ayarlar yüklenirken hata: $e'));
     }
   }
 }
-

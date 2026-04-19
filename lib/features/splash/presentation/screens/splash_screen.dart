@@ -181,10 +181,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
     if (lower.contains('socketexception') ||
         lower.contains('connectionerror') ||
+        lower.contains('xmlhttprequest') ||
+        lower.contains('failed to fetch') ||
+        lower.contains('cors') ||
         lower.contains('network')) {
-      return 'Internet baglantisi yok. Baglantini kontrol edip tekrar dene.';
+      return 'Sunucuya su anda ulasilamiyor. Lutfen internetini kontrol edip tekrar dene.';
     }
-    return message;
+    return 'Bir sorun olustu. Lutfen biraz sonra tekrar dene.';
   }
 
   /// Step 1 -- Check connection (lightweight, always succeeds for now)
@@ -713,5 +716,3 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 }
-
-

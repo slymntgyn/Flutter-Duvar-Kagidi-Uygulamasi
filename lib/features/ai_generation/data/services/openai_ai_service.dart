@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:senseriduvarkagidi/core/constants/api_constants.dart';
 import 'package:senseriduvarkagidi/core/errors/exceptions.dart';
 import 'package:senseriduvarkagidi/core/network/dio_client.dart';
@@ -87,6 +88,7 @@ class OpenAIImageService implements AIImageService {
     if (url != null && url is String && url.isNotEmpty) {
       final imageResponse = await _dioClient.externalGet<List<int>>(
         url,
+        responseType: ResponseType.bytes,
       );
 
       final dynamic rawData = imageResponse.data;
@@ -102,4 +104,3 @@ class OpenAIImageService implements AIImageService {
     throw const AIServiceException('OpenAI API yanıtında görsel bulunamadı');
   }
 }
-

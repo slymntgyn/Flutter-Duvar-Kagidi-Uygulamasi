@@ -3,7 +3,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:senseriduvarkagidi/core/constants/api_constants.dart';
 import 'package:senseriduvarkagidi/ek/restful.dart';
 import 'package:senseriduvarkagidi/ek/result.dart';
-import 'package:senseriduvarkagidi/ek/yardimci.dart';
 
 class Ayarlar {
   String adi = "";
@@ -13,6 +12,10 @@ class Ayarlar {
     adi = json['adi'] as String? ?? "";
     deger = json['deger'] as String? ?? "";
   }
+
+  static const String _userFriendlySettingsError =
+      'Ayarlar su anda yuklenemiyor. Lutfen internetini kontrol edip tekrar dene.';
+
   static Future<List<Ayarlar>?> getSettings(BuildContext context) async {
     try {
       ResultGet result =
@@ -21,6 +24,9 @@ class Ayarlar {
         return null;
       }
       if (result.hata) {
+        throw Exception(result.hataMesaji.isNotEmpty
+            ? result.hataMesaji
+            : _userFriendlySettingsError);
       } else {
         if (result.sonuc != "") {
           var jsonlist = jsonDecode(result.sonuc) as List;
@@ -35,11 +41,8 @@ class Ayarlar {
       if (!context.mounted) {
         return null;
       }
-      Yardimci.showErrorDialog(
-          context, "Hata Oluştu", "Lütfen Daha Sonra Tekrar Deneyin");
+      throw Exception(_userFriendlySettingsError);
     }
     return null;
   }
 }
-
-

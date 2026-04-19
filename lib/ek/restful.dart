@@ -6,6 +6,9 @@ import 'package:http/http.dart' as http;
 import 'package:senseriduvarkagidi/ek/result.dart';
 
 class Restful {
+  static const String _userFriendlyNetworkError =
+      'Sunucuya su anda ulasilamiyor. Lutfen internetini kontrol edip tekrar dene.';
+
   static Future<ResultGet> getRequest(
       String link, BuildContext context, String fonksyion) async {
     ResultGet result = ResultGet();
@@ -39,9 +42,13 @@ class Restful {
       debugPrint('hata : $error');
       result.hata = true;
       if (error is TimeoutException) {
-        result.hataMesaji = 'API isteği zaman aşımına uğradı';
+        result.hataMesaji = _userFriendlyNetworkError;
+      } else if (error.toString().toLowerCase().contains('xmlhttprequest') ||
+          error.toString().toLowerCase().contains('failed to fetch') ||
+          error.toString().toLowerCase().contains('clientexception')) {
+        result.hataMesaji = _userFriendlyNetworkError;
       } else {
-        result.hataMesaji = error.toString();
+        result.hataMesaji = _userFriendlyNetworkError;
       }
       return result;
     }
@@ -76,12 +83,15 @@ class Restful {
     } catch (error) {
       result.hata = true;
       if (error is TimeoutException) {
-        result.hataMesaji = 'API isteği zaman aşımına uğradı';
+        result.hataMesaji = _userFriendlyNetworkError;
+      } else if (error.toString().toLowerCase().contains('xmlhttprequest') ||
+          error.toString().toLowerCase().contains('failed to fetch') ||
+          error.toString().toLowerCase().contains('clientexception')) {
+        result.hataMesaji = _userFriendlyNetworkError;
       } else {
-        result.hataMesaji = error.toString();
+        result.hataMesaji = _userFriendlyNetworkError;
       }
       return result;
     }
   }
 }
-

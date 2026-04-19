@@ -3,15 +3,8 @@
 class ApiConstants {
   ApiConstants._();
 
-  /// Debug/Profile build → test.suleymanturan.com  (mevcut canlı, eski mimari)
-  /// Release build      → api.suleymanturan.com    (yeni mimari, controller'lara bölünmüş)
-  /// Manuel override    → flutter build apk --dart-define=API_BASE_URL=https://...
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: bool.fromEnvironment('dart.vm.product')
-        ? 'https://api.suleymanturan.com'   // Release (Google Play)
-        : 'https://test.suleymanturan.com', // Debug / gelistirme
-  );
+  /// Tum platformlarda tek API hostu kullanilir.
+  static const String baseUrl = 'https://api.suleymanturan.com';
 
   // ==================== Uygulama Endpointleri ====================
 
@@ -31,7 +24,6 @@ class ApiConstants {
   static String toggleFavorite(String deviceId, int imageId) =>
       '/api/kullanici/$deviceId/favori/$imageId';
 
-
   /// Kullanici islem logu atar (duvar kagidi yapma, indirme vb).
   static String logAction(String deviceId, String action, int imageId) =>
       '/api/kullanici/$deviceId/islem/$action/$imageId';
@@ -39,8 +31,7 @@ class ApiConstants {
   // ==================== Premium Endpointleri ====================
 
   /// Premium durumu ve AI kullanim bilgisini getirir.
-  static String getPremiumStatus(String deviceId) =>
-      '/api/premium/$deviceId';
+  static String getPremiumStatus(String deviceId) => '/api/premium/$deviceId';
 
   /// Premium aboneligi aktif eder.
   static String activatePremium(String deviceId) =>
@@ -60,6 +51,8 @@ class ApiConstants {
   static const String openRouterBaseUrl = 'https://openrouter.ai/api/v1';
   static const String openRouterChatCompletions =
       '$openRouterBaseUrl/chat/completions';
+  static const String openRouterImageGeneration =
+      '$openRouterBaseUrl/images/generations';
 
   /// OpenAI API
   static const String openAiBaseUrl = 'https://api.openai.com/v1';
@@ -73,4 +66,3 @@ class ApiConstants {
   static const Duration aiConnectTimeout = Duration(seconds: 30);
   static const Duration aiReceiveTimeout = Duration(seconds: 120);
 }
-

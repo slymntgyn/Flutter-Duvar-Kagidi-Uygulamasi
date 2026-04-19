@@ -25,6 +25,7 @@ import 'package:senseriduvarkagidi/features/user/domain/repositories/user_reposi
 import 'package:senseriduvarkagidi/core/errors/exceptions.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/data/services/openai_ai_service.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/data/services/openrouter_ai_service.dart';
+import 'package:senseriduvarkagidi/features/ai_generation/domain/entities/generation_request.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/domain/services/ai_image_service.dart';
 import 'package:senseriduvarkagidi/features/settings/domain/entities/app_settings.dart';
 import 'package:senseriduvarkagidi/core/errors/result.dart';
@@ -53,8 +54,7 @@ final networkInfoProvider = Provider<NetworkInfo>((ref) {
 // ==================== Theme ====================
 
 /// Tema yonetimi provider'i.
-final themeProvider =
-    StateNotifierProvider<ThemeNotifier, AppThemeMode>((ref) {
+final themeProvider = StateNotifierProvider<ThemeNotifier, AppThemeMode>((ref) {
   return ThemeNotifier(ref.read(localStorageProvider));
 });
 
@@ -116,9 +116,8 @@ final aiImageServiceProvider = Provider<AIImageService>((ref) {
   }
 
   final provider = settings.aiProvider.trim().toLowerCase();
-  final model = settings.aiModel.trim().isNotEmpty
-      ? settings.aiModel.trim()
-      : 'dall-e-3';
+  final model =
+      settings.aiModel.trim().isNotEmpty ? settings.aiModel.trim() : 'dall-e-3';
 
   if (provider == 'openrouter') {
     return OpenRouterImageService(
@@ -144,8 +143,7 @@ class _EmptyAIService implements AIImageService {
   Future<bool> isAvailable() async => false;
 
   @override
-  Future<Uint8List> generateImage(dynamic request) async {
+  Future<Uint8List> generateImage(GenerationRequest request) async {
     throw const AIServiceException('AI API anahtari tanimli degil');
   }
 }
-

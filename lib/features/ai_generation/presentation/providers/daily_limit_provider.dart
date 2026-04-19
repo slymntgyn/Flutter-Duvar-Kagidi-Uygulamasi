@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:senseriduvarkagidi/core/constants/app_constants.dart';
 import 'package:senseriduvarkagidi/core/di/providers.dart';
@@ -40,7 +42,7 @@ class DailyLimitNotifier extends StateNotifier<DailyLimitState> {
           _ref.read(appSettingsProvider).valueOrNull?.aiDailyLimit ?? 0;
 
       if (!wasPro && isPro) {
-        _resetDailyUsageAndApplyLimit(settingsLimit);
+        unawaited(_resetDailyUsageAndApplyLimit(settingsLimit));
         return;
       }
 
@@ -76,7 +78,7 @@ class DailyLimitNotifier extends StateNotifier<DailyLimitState> {
     );
   }
 
-  void _resetDailyUsageAndApplyLimit(int settingsLimit) async {
+  Future<void> _resetDailyUsageAndApplyLimit(int settingsLimit) async {
     final storage = _ref.read(localStorageProvider);
     final today = DateTime.now().toIso8601String().split('T')[0];
 
