@@ -65,6 +65,15 @@ test/
 - Free hakkı bitince üret butonu paywall'a yönlendirir; Pro bitince "yarın tekrar deneyin" uyarısı.
 - Paywall vaatleri koda bağlı ve **dürüst olmalı** (Play politikası): "sınırsız"/"4K" gibi karşılığı olmayan vaatler yazma. Mevcut vaatler: NVIDIA AI üretim, tüm stiller, reklamsız, tek dokunuşla uygula.
 
+## Çoklu Dil (i18n)
+- Flutter resmi `gen-l10n` sistemi. Yapılandırma: `l10n.yaml` (synthetic-package: false, çıktı `lib/l10n/generated/`).
+- Çeviri dosyaları: `lib/l10n/app_<dil>.arb`. Şablon **app_tr.arb** (Türkçe kaynak). Desteklenen: tr, en, de, fr, es, ar, ja, ko, th, zh.
+- Dil seçimi cihaz diline göre otomatik (`main.dart` → `localeResolutionCallback`), desteklenmeyen dilde **Türkçe yedek**.
+- Metin kullanımı: `final l10n = AppLocalizations.of(context);` sonra `l10n.anahtarAdi`. Placeholder'lı: `l10n.dailyAiQuota(remaining, limit)`.
+- **Yeni metin ekleme:** önce `app_tr.arb`'ye anahtar+değer ekle (placeholder varsa `@anahtar` metadata), sonra 9 çeviri dosyasına da ekle, `flutter gen-l10n` çalıştır. Eksik çeviri build'i kırmaz ama o dilde Türkçe/şablon görünür.
+- **Lokalize EDİLEN ekranlar (bu batch):** alt menü (home_screen), Ayarlar (settings_screen), Premium/paywall. **Henüz Türkçe sabit:** AI üretim ekranı (ai_generation_screen), ana sekmeler (explore/categories/favorites_tab), detay ekranı, splash. Bunları çevirirken aynı pattern'i uygula.
+- Emülatörde test: cihaz dilini değiştir (veya varsayılan en-US emülatörde app otomatik İngilizce açılır). Root yoksa `setprop locale` çalışmaz; farklı dili Ayarlar UI'dan seç.
+
 ## Kod Kuralları
 - `var` yerine açık tip; `final` tercih et
 - Her `async` fonksiyonda hata yakalama; hatalar `core/errors` tiplerine map edilir, kullanıcıya Türkçe mesaj (`error_message_mapper.dart`)
