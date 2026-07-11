@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:senseriduvarkagidi/core/di/providers.dart';
 import 'package:senseriduvarkagidi/core/theme/app_theme.dart';
 import 'package:senseriduvarkagidi/features/premium/domain/entities/premium_status.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/screens/premium_paywall_screen.dart';
+
+/// Uygulama surumunu (pubspec'ten build'e gomulen) dinamik olarak okur.
+/// Sabit string yerine kullanilir; her surumde otomatik guncellenir.
+final appVersionProvider = FutureProvider<String>((ref) async {
+  final info = await PackageInfo.fromPlatform();
+  return '${info.version} (${info.buildNumber})';
+});
 
 /// Uygulama ayarlari ekrani.
 class SettingsScreen extends ConsumerWidget {
@@ -72,7 +80,12 @@ class SettingsScreen extends ConsumerWidget {
       ListTile(
         leading: const Icon(Icons.info_rounded),
         title: const Text('Uygulama Surumu'),
-        subtitle: const Text('1.0.25'),
+        subtitle: Text(
+          ref.watch(appVersionProvider).maybeWhen(
+                data: (version) => version,
+                orElse: () => '...',
+              ),
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(

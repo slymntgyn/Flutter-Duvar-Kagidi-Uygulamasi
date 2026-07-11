@@ -67,6 +67,51 @@ flutter analyze          # sıfır issue beklenir (~1-2 dk sürer)
 flutter test             # tüm testler geçmeli
 ```
 Yeni hata düzeltmesi/özellik için mümkünse `test/unit/` altına test ekle.
+**UI değiştiren her işte** kod doğru derlense bile emülatörde görsel olarak doğrula
+(aşağıdaki bölüm) — analyze/test layout taşması, güvenli-alan sorunu, hizalama
+bozukluğu gibi kullanıcının gördüğü hataları YAKALAMAZ.
+
+## Emülatörde Çalıştırma ve Görsel Doğrulama (UI ÖNEMLİDİR)
+
+Kullanıcı görünümü öncelikli — her UI değişikliği emülatörde gerçek ekranda görülmeli.
+
+**Ortam:**
+- Emülatör: `Medium_Phone_API_36` (Android 16 / API 36, 1080x2400). Başlat:
+  `flutter emulators --launch Medium_Phone_API_36`
+- adb yolu (PATH'te değil): `C:\Users\Suleyman\AppData\Local\Android\Sdk\platform-tools\adb.exe`
+- Git Bash'te adb'ye shell yolu geçerken `MSYS_NO_PATHCONV=1` kullan (yoksa `/data` → `C:/Program Files/...` olur).
+
+**Kurulum tuzağı:** Bu emülatörün `/data` bölümü küçük (~5.8G) ve sık dolu olur;
+`flutter run` "not enough space / Requested internal only" ile install aşamasında patlayabilir.
+Çözüm: APK'yı ayrı derleyip doğrudan kur (streamed install daha az geçici alan ister):
+```
+flutter build apk --debug
+ADB="C:/Users/Suleyman/AppData/Local/Android/Sdk/platform-tools/adb.exe"
+MSYS_NO_PATHCONV=1 "$ADB" -s emulator-5554 install -r -d build/app/outputs/flutter-apk/app-debug.apk
+MSYS_NO_PATHCONV=1 "$ADB" -s emulator-5554 shell monkey -p com.benim.ilk.uygulamam.senseriduvarkagidi -c android.intent.category.LAUNCHER 1
+```
+Alan dolarsa `pm trim-caches` genelde işe yaramaz; gerekirse eski test APK'larını kaldır
+(kullanıcının diğer uygulamalarının verisini silmek riskli — önce kullanıcıya sor).
+
+**Ekran görüntüsü alıp gezinme:**
+```
+MSYS_NO_PATHCONV=1 "$ADB" -s emulator-5554 shell screencap -p /sdcard/ss.png
+MSYS_NO_PATHCONV=1 "$ADB" -s emulator-5554 pull /sdcard/ss.png <scratchpad>/ss.png
+MSYS_NO_PATHCONV=1 "$ADB" -s emulator-5554 shell input tap <x> <y>   # koordinat = cihazın gerçek px'i (1080x2400)
+```
+Alt nav sekmeleri (gerçek px): Keşfet ~110,2280 · Kategoriler ~342,2274 · Favoriler ~735,2280 · Ayarlar ~960,2280 · AI FAB (orta) ~540,2170.
+
+**UI kalite kontrol listesi (her ekranda bak):**
+- Debug build'de kırmızı/sarı **"BOTTOM/RIGHT OVERFLOWED BY N PIXELS"** taşma bandı var mı?
+- Sabit `height` + `SafeArea`/gesture-nav kombinasyonu taşma yapıyor mu? (alt inset'i yüksekliğe ekle: `height: 80 + MediaQuery.of(context).padding.bottom`)
+- Kayan/örtüşen widget'lar (FAB metnin üstüne biniyor mu?)
+- Ekranda gösterilen dinamik veri sabit kodlanmış mı? (ör. sürüm, sayaç)
+- Açık/Koyu/AMOLED temaların üçünde de okunaklı mı?
+
+## AI görsel üretimi notu
+- AI hata mesajları ekranda string içeriğine göre sınıflandırılıyor (`ai_generation_screen.dart`).
+- Bu eşleşme büyük/küçük harf duyarsız; AIServiceException mesajlarını değiştirirsen
+  ekrandaki eşleşmeleri de güncelle ve `test/unit/openrouter_ai_service_error_mapping_test.dart` koştur.
 
 ## Play Store Yayınlama Süreci
 
@@ -95,4 +140,4 @@ Yeni hata düzeltmesi/özellik için mümkünse `test/unit/` altına test ekle.
 - `lib/ek/`, `lib/model/`, `lib/Screens/` legacy klasörlerdir; buradaki kod `features/` ile paralel yaşıyor — davranış değiştirirken iki tarafı da kontrol et.
 - Bazı kullanıcı metinleri bilinçli olarak Türkçe karaktersiz yazılmış ("Gunluk limitiniz doldu") — mevcut dosyanın stilini koru, toplu "düzeltme" yapma.
 - `wallpaper_manager_plus` major sürüm geride (1.x kullanılıyor, 2.x mevcut) — yükseltme davranış kırabilir, bilinçli karar olmadan yükseltme.
-- AI hata mesajları ekranda string içeriğine göre sınıflandırılıyor (`ai_generation_screen.dart`) — AIServiceException mesajlarını değiştirirsen ekrandaki eşleşmeleri de güncelle ve `test/unit/openrouter_ai_service_error_mapping_test.dart` testini koştur.
+- Ekranda gösterilen sürüm bir dönem `settings_screen.dart` içinde sabit kodluydu; artık `appVersionProvider` (package_info_plus) ile pubspec'ten dinamik okunuyor — tekrar sabit string yazma.

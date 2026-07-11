@@ -212,11 +212,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildBottomNav() {
+    // Jest cubugu olan cihazlarda alt guvenli-alan payi sabit yuksekligin
+    // icinden yenmesin diye inset'i yukseklige ekliyoruz (taşma duzeltmesi).
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return ClipRRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          height: 80,
+          height: 80 + bottomInset,
           decoration: BoxDecoration(
             color: Theme.of(context)
                 .scaffoldBackgroundColor
