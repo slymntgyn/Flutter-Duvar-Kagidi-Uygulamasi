@@ -16,6 +16,9 @@ migrate_working_dir/
 *.iws
 .idea/
 
+# Claude Code — yerel ayarlar (skill'ler paylaşılır, yerel ayarlar paylaşılmaz)
+.claude/settings.local.json
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
