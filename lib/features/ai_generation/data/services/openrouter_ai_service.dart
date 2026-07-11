@@ -55,9 +55,49 @@ class OpenRouterImageService implements AIImageService {
       }
 
       throw AIServiceException('API isteği başarısız: ${response.statusCode}');
-    } catch (e) {
-      if (e is AIServiceException) rethrow;
-      throw AIServiceException('AI servisi ile bağlantı kurulamadı: $e');
+    } on AIServiceException {
+      rethrow;
+    } on NetworkException catch (error) {
+      throw AIServiceException('İnternet bağlantısı sorunu: ${error.message}');
+    } on ServerException catch (error) {
+      final statusCode = error.statusCode;
+      if (statusCode == 401 || statusCode == 403) {
+        throw const AIServiceException(
+            'AI API anahtarı geçersiz veya yetkisiz (401/403)');
+      }
+      if (statusCode == 429) {
+        throw const AIServiceException('AI istek limiti aşıldı (429)');
+      }
+      if (statusCode != null && statusCode >= 500) {
+        throw AIServiceException(
+            'AI servisinde geçici sunucu hatası ($statusCode)');
+      }
+      throw AIServiceException(
+          'AI API isteği başarısız (${statusCode ?? '-'})');
+    } on DioException catch (error) {
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.connectionError) {
+        throw AIServiceException(
+            'İnternet bağlantısı sorunu: ${error.message ?? 'Ağ hatası'}');
+      }
+
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 401 || statusCode == 403) {
+        throw const AIServiceException(
+            'AI API anahtarı geçersiz veya yetkisiz (401/403)');
+      }
+      if (statusCode == 429) {
+        throw const AIServiceException('AI istek limiti aşıldı (429)');
+      }
+      if (statusCode != null) {
+        throw AIServiceException('AI API isteği başarısız ($statusCode)');
+      }
+
+      throw AIServiceException('AI servis hatası: ${error.message ?? error}');
+    } catch (error) {
+      throw AIServiceException('AI servis hatası: $error');
     }
   }
 
@@ -113,7 +153,7 @@ class OpenRouterImageService implements AIImageService {
     if (content is String) {
       base64String = content;
     } else if (content is List) {
-      for (var item in content) {
+      for (final item in content) {
         if (item is Map &&
             item['type'] == 'image_url' &&
             item['image_url']?['url'] != null) {

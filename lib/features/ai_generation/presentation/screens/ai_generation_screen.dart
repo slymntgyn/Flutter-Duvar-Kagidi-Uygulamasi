@@ -256,25 +256,34 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
         _showSuccess('Duvar kagidiniz basariyla olusturuldu!');
       } else if (state.error != null) {
         HapticFeedback.lightImpact();
-        final err = state.error ?? '';
-        String mesaj;
-        if (err.contains('API anahtari') ||
+        final err = (state.error ?? '').toLowerCase();
+        final bool isAuthError = err.contains('api anaht') ||
             err.contains('api key') ||
             err.contains('401') ||
-            err.contains('Unauthorized')) {
-          mesaj =
-              'OpenAI API anahtarı geçersiz veya tanımlı değil. Lütfen yönetici ile iletişime geçin.';
-        } else if (err.contains('bağlantı') ||
-            err.contains('baglanti') ||
-            err.contains('internet') ||
-            err.contains('ConnectionError') ||
-            err.contains('SocketException')) {
-          mesaj = 'İnternet bağlantısı yok. Lütfen bağlantınızı kontrol edin.';
-        } else if (err.contains('429') ||
+            err.contains('403') ||
+            err.contains('unauthorized') ||
+            err.contains('yetkisiz');
+        final bool isNetworkError = err.contains('internet bağlantısı') ||
+            err.contains('internet baglantisi') ||
+            err.contains('connectionerror') ||
+            err.contains('socketexception') ||
+            err.contains('networkexception') ||
+            err.contains('zaman aşımı') ||
+            err.contains('zaman asimi') ||
+            err.contains('timeout');
+        final bool isRateLimitError = err.contains('429') ||
             err.contains('quota') ||
-            err.contains('Rate limit')) {
+            err.contains('rate limit') ||
+            err.contains('istek limiti');
+
+        String mesaj;
+        if (isAuthError) {
           mesaj =
-              'OpenAI istek limiti aşıldı. Lütfen daha sonra tekrar deneyin.';
+              'AI API anahtarı geçersiz veya tanımlı değil. Lütfen yönetici ile iletişime geçin.';
+        } else if (isNetworkError) {
+          mesaj = 'İnternet bağlantısı yok. Lütfen bağlantınızı kontrol edin.';
+        } else if (isRateLimitError) {
+          mesaj = 'AI istek limiti aşıldı. Lütfen daha sonra tekrar deneyin.';
         } else {
           mesaj = 'Görsel oluşturulamadı. Lütfen tekrar deneyin.';
         }
@@ -784,10 +793,10 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
                     const SizedBox(height: 2),
                     Text(
                       premiumStatus.isPro
-                        ? (isExhausted
-                          ? 'Gunluk limitiniz doldu. Yarin tekrar deneyin.'
-                          : 'Bugun $remaining uretim hakkiniz kaldi.')
-                        : 'Premium uyelikle gunluk 3 uretim hakki kazanirsiniz.',
+                          ? (isExhausted
+                              ? 'Gunluk limitiniz doldu. Yarin tekrar deneyin.'
+                              : 'Bugun $remaining uretim hakkiniz kaldi.')
+                          : 'Premium uyelikle gunluk 3 uretim hakki kazanirsiniz.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.textTheme.bodySmall?.color
                             ?.withValues(alpha: 0.7),
