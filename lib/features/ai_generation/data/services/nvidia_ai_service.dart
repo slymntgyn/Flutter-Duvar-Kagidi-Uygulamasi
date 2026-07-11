@@ -27,7 +27,13 @@ class NvidiaImageService implements AIImageService {
     String model = ApiConstants.defaultNvidiaModel,
   })  : _dioClient = dioClient,
         _apiKey = apiKey,
-        _model = model.trim().isNotEmpty ? model.trim() : ApiConstants.defaultNvidiaModel;
+        // NVIDIA model kimlikleri 'org/model' formatindadir (or.
+        // black-forest-labs/flux.1-schnell). '/' icermeyen degerler
+        // (dall-e-3, gpt-image-1 gibi eski OpenAI modelleri) NVIDIA'da
+        // gecersizdir; bu durumda varsayilan flux modeline duseriz.
+        _model = model.trim().contains('/')
+            ? model.trim()
+            : ApiConstants.defaultNvidiaModel;
 
   @override
   String get serviceId => 'nvidia';
