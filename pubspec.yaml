@@ -30,6 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations: # Çoklu dil desteği (i18n)
+    sdk: flutter
+  intl: ^0.20.2 # Lokalizasyon / gen-l10n için
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -93,6 +96,7 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  generate: true # gen-l10n ile lokalizasyon kodu üretimi
   assets:
     - assets/images/
     - assets/animations/

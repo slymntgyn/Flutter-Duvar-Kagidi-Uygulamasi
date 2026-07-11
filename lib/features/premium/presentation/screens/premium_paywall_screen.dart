@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
 import 'package:senseriduvarkagidi/features/purchase/presentation/providers/purchase_provider.dart';
+import 'package:senseriduvarkagidi/l10n/generated/app_localizations.dart';
 
 /// Premium paywall ekrani.
 class PremiumPaywallScreen extends ConsumerStatefulWidget {
@@ -26,14 +27,15 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
     final premium = ref.watch(premiumProvider);
     final purchase = ref.watch(purchaseProvider);
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     ref.listen(purchaseProvider, (prev, next) {
       if (!mounted) return;
       if (next.purchaseSuccess && prev?.purchaseSuccess == false) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Pro'ya yukseltildiniz! Tesekkurler."),
+          SnackBar(
+            content: Text(l10n.upgradedToProMessage),
             backgroundColor: Colors.green,
           ),
         );
@@ -100,7 +102,7 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      '4K-HD Pro',
+                      l10n.proTitle,
                       style: theme.textTheme.headlineLarge?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -109,7 +111,7 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Yapay zeka ile duvar kagidi uretmenin kilidini ac',
+                      l10n.paywallSubtitle,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
                     ),
@@ -117,32 +119,32 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                     _buildFeatureCard(
                       context,
                       icon: Icons.auto_awesome_rounded,
-                      title: 'NVIDIA AI ile Uretim',
-                      description: 'Hayalindeki duvar kagidini NVIDIA yapay zekasiyla saniyeler icinde olustur',
+                      title: l10n.featureNvidiaTitle,
+                      description: l10n.featureNvidiaDesc,
                       iconColor: Colors.purpleAccent,
                     ),
                     const SizedBox(height: 12),
                     _buildFeatureCard(
                       context,
                       icon: Icons.palette_rounded,
-                      title: 'Tum Sanat Stilleri',
-                      description: '10+ stil acilir: gercekci, anime, siberpunk, fantastik ve daha fazlasi',
+                      title: l10n.featureStylesTitle,
+                      description: l10n.featureStylesDesc,
                       iconColor: Colors.tealAccent,
                     ),
                     const SizedBox(height: 12),
                     _buildFeatureCard(
                       context,
                       icon: Icons.block_rounded,
-                      title: 'Reklamsiz Deneyim',
-                      description: 'Banner ve tum reklamlar kalkar, kesintisiz kullanirsin',
+                      title: l10n.featureAdFreeTitle,
+                      description: l10n.featureAdFreeDesc,
                       iconColor: Colors.redAccent,
                     ),
                     const SizedBox(height: 12),
                     _buildFeatureCard(
                       context,
                       icon: Icons.wallpaper_rounded,
-                      title: 'Tek Dokunusla Uygula',
-                      description: 'Urettigin gorseli ana/kilit ekranina uygula, indir veya paylas',
+                      title: l10n.featureApplyTitle,
+                      description: l10n.featureApplyDesc,
                       iconColor: Colors.blueAccent,
                     ),
                     const SizedBox(height: 32),
@@ -161,7 +163,7 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                             const SizedBox(width: 8),
                             Flexible(
                               child: Text(
-                                'AI duvar kagidi uretimi su an kilitli. Pro ile hemen ac.',
+                                l10n.aiLockedNotice,
                                 style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
                               ),
                             ),
@@ -178,9 +180,9 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                         _buildPurchaseButton(
                           context,
                           theme,
-                          title: 'Aylik Pro',
+                          title: l10n.monthlyPro,
                           price: purchase.proMonthly!.price,
-                          subtitle: 'Ayda bir kez odeme',
+                          subtitle: l10n.monthlyProSubtitle,
                           isLoading: purchase.isLoading,
                           onTap: () {
                             HapticFeedback.mediumImpact();
@@ -193,9 +195,9 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                         _buildPurchaseButton(
                           context,
                           theme,
-                          title: 'Yillik Pro',
+                          title: l10n.yearlyPro,
                           price: purchase.proYearly!.price,
-                          subtitle: 'En iyi deger - %40 tasarruf',
+                          subtitle: l10n.yearlyProSubtitle,
                           isLoading: purchase.isLoading,
                           onTap: () {
                             HapticFeedback.mediumImpact();
@@ -212,13 +214,13 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                               HapticFeedback.lightImpact();
                               ref.read(purchaseProvider.notifier).restorePurchases();
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Satin alimlar geri yukleniyor...'),
+                                SnackBar(
+                                  content: Text(l10n.restoringPurchases),
                                 ),
                               );
                             },
                       child: Text(
-                        'Satin Alimi Geri Yukle',
+                        l10n.restorePurchase,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: Colors.white54,
                           decoration: TextDecoration.underline,
@@ -228,7 +230,7 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Abonelik otomatik yenilenir. Istediginiz zaman iptal edebilirsiniz.',
+                      l10n.subscriptionAutoRenew,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(color: Colors.white30),
                     ),
@@ -242,15 +244,15 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
             Positioned.fill(
               child: Container(
                 color: Colors.black.withValues(alpha: 0.35),
-                child: const Center(
+                child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: Colors.amber),
-                      SizedBox(height: 12),
+                      const CircularProgressIndicator(color: Colors.amber),
+                      const SizedBox(height: 12),
                       Text(
-                        'Satin alma islemi suruyor...',
-                        style: TextStyle(color: Colors.white),
+                        l10n.purchaseInProgress,
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ],
                   ),
@@ -316,12 +318,13 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
   }
 
   Widget _buildFallbackButton(BuildContext context, ThemeData theme) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         const Icon(Icons.store_outlined, color: Colors.white30, size: 40),
         const SizedBox(height: 8),
         Text(
-          'Urunler yuklenemedi.\nLutfen internet baglantinizi kontrol edin.',
+          l10n.productsLoadError,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white54),
         ),
@@ -329,8 +332,8 @@ class _PremiumPaywallScreenState extends ConsumerState<PremiumPaywallScreen> {
         TextButton(
           onPressed: () =>
               ref.read(purchaseProvider.notifier).loadProducts(),
-          child: const Text('Tekrar Dene',
-              style: TextStyle(color: Colors.amber)),
+          child: Text(l10n.retry,
+              style: const TextStyle(color: Colors.amber)),
         ),
       ],
     );

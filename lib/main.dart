@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:senseriduvarkagidi/core/di/providers.dart';
 import 'package:senseriduvarkagidi/core/theme/app_theme.dart';
 import 'package:senseriduvarkagidi/features/splash/presentation/screens/splash_screen.dart';
+import 'package:senseriduvarkagidi/l10n/generated/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +57,19 @@ class MyApp extends ConsumerWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: _mapToFlutterThemeMode(themeMode),
+      // Cihaz diline gore otomatik dil secimi; desteklenmeyen dilde Turkce.
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localeResolutionCallback: (deviceLocale, supportedLocales) {
+        if (deviceLocale != null) {
+          for (final locale in supportedLocales) {
+            if (locale.languageCode == deviceLocale.languageCode) {
+              return locale;
+            }
+          }
+        }
+        return const Locale('tr');
+      },
       home: const SplashScreen(),
     );
   }

@@ -14,6 +14,7 @@ import 'package:senseriduvarkagidi/features/home/presentation/widgets/explore_ta
 import 'package:senseriduvarkagidi/features/home/presentation/widgets/favorites_tab.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
 import 'package:senseriduvarkagidi/features/settings/presentation/screens/settings_screen.dart';
+import 'package:senseriduvarkagidi/l10n/generated/app_localizations.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -212,6 +213,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildBottomNav() {
+    final l10n = AppLocalizations.of(context);
     // Jest cubugu olan cihazlarda alt guvenli-alan payi sabit yuksekligin
     // icinden yenmesin diye inset'i yukseklige ekliyoruz (taşma duzeltmesi).
     final bottomInset = MediaQuery.of(context).padding.bottom;
@@ -235,14 +237,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             child: Row(
               children: [
                 _buildNavItem(0, Icons.explore_outlined, Icons.explore,
-                    'Kesfet', Colors.blue),
+                    l10n.navExplore, Colors.blue),
                 _buildNavItem(1, Icons.grid_view_outlined, Icons.grid_view,
-                    'Kategoriler', Colors.orange),
+                    l10n.navCategories, Colors.orange),
                 const SizedBox(width: 64),
                 _buildNavItem(2, Icons.favorite_outline, Icons.favorite,
-                    'Favoriler', Colors.red),
+                    l10n.navFavorites, Colors.red),
                 _buildNavItem(3, Icons.settings_outlined, Icons.settings,
-                    'Ayarlar', Colors.teal),
+                    l10n.navSettings, Colors.teal),
               ],
             ),
           ),

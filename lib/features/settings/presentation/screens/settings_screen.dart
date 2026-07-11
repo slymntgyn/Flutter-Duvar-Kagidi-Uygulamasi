@@ -7,6 +7,7 @@ import 'package:senseriduvarkagidi/core/theme/app_theme.dart';
 import 'package:senseriduvarkagidi/features/premium/domain/entities/premium_status.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/providers/premium_provider.dart';
 import 'package:senseriduvarkagidi/features/premium/presentation/screens/premium_paywall_screen.dart';
+import 'package:senseriduvarkagidi/l10n/generated/app_localizations.dart';
 
 /// Uygulama surumunu (pubspec'ten build'e gomulen) dinamik olarak okur.
 /// Sabit string yerine kullanilir; her surumde otomatik guncellenir.
@@ -29,7 +30,7 @@ class SettingsScreen extends ConsumerWidget {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$label aktif edildi'),
+        content: Text(AppLocalizations.of(context).themeActivated(label)),
         duration: const Duration(seconds: 1),
         behavior: SnackBarBehavior.floating,
       ),
@@ -39,47 +40,50 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final currentTheme = ref.watch(themeProvider);
     final premium = ref.watch(premiumProvider);
     final items = <Widget>[
       // ---- PREMIUM ----
-      const _SectionHeader(title: 'Premium'),
+      _SectionHeader(title: l10n.premiumSection),
       const SizedBox(height: 8),
       _PremiumCard(premium: premium),
       const SizedBox(height: 24),
 
       // ---- TEMA ----
-      const _SectionHeader(title: 'Gorsel Tema'),
+      _SectionHeader(title: l10n.themeSection),
       const SizedBox(height: 8),
       _ThemeOptionTile(
-        label: 'Acik Tema',
+        label: l10n.themeLight,
         icon: Icons.light_mode_rounded,
         isSelected: currentTheme == AppThemeMode.light,
-        onTap: () => _applyTheme(context, ref, AppThemeMode.light, 'Acik tema'),
+        onTap: () =>
+            _applyTheme(context, ref, AppThemeMode.light, l10n.themeLight),
       ),
       const SizedBox(height: 8),
       _ThemeOptionTile(
-        label: 'Koyu Tema',
+        label: l10n.themeDark,
         icon: Icons.dark_mode_rounded,
         isSelected: currentTheme == AppThemeMode.dark,
-        onTap: () => _applyTheme(context, ref, AppThemeMode.dark, 'Koyu tema'),
+        onTap: () =>
+            _applyTheme(context, ref, AppThemeMode.dark, l10n.themeDark),
       ),
       const SizedBox(height: 8),
       _ThemeOptionTile(
-        label: 'AMOLED (Saf Siyah)',
+        label: l10n.themeAmoled,
         icon: Icons.phone_android_rounded,
         isSelected: currentTheme == AppThemeMode.amoled,
         onTap: () =>
-            _applyTheme(context, ref, AppThemeMode.amoled, 'AMOLED tema'),
+            _applyTheme(context, ref, AppThemeMode.amoled, l10n.themeAmoled),
       ),
       const SizedBox(height: 24),
 
       // ---- HAKKINDA ----
-      const _SectionHeader(title: 'Hakkinda'),
+      _SectionHeader(title: l10n.aboutSection),
       const SizedBox(height: 8),
       ListTile(
         leading: const Icon(Icons.info_rounded),
-        title: const Text('Uygulama Surumu'),
+        title: Text(l10n.appVersion),
         subtitle: Text(
           ref.watch(appVersionProvider).maybeWhen(
                 data: (version) => version,
@@ -98,7 +102,7 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ayarlar'),
+        title: Text(l10n.settingsTitle),
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
       ),
@@ -140,6 +144,7 @@ class _PremiumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     if (premium.isPro) {
       return Container(
         padding: const EdgeInsets.all(20),
@@ -174,15 +179,15 @@ class _PremiumCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Pro Kullanicisi',
-                    style: TextStyle(
+                  Text(
+                    l10n.proUserTitle,
+                    style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 16),
                   ),
                   Text(
-                    'Tum ozellikler aktif',
+                    l10n.proUserSubtitle,
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 13),
@@ -232,15 +237,16 @@ class _PremiumCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Ucretsiz Plan',
-                      style: TextStyle(
+                    Text(
+                      l10n.freePlanTitle,
+                      style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16),
                     ),
                     Text(
-                      'Gunluk ${premium.remainingAiGenerations}/${premium.dailyAiLimit} AI uretim hakki',
+                      l10n.dailyAiQuota(
+                          premium.remainingAiGenerations, premium.dailyAiLimit),
                       style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.8),
                           fontSize: 13),
@@ -270,14 +276,15 @@ class _PremiumCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.arrow_upward_rounded, size: 18),
-                  SizedBox(width: 8),
+                  const Icon(Icons.arrow_upward_rounded, size: 18),
+                  const SizedBox(width: 8),
                   Text(
-                    "Pro'ya Yuksel",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    l10n.upgradeToPro,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ],
               ),

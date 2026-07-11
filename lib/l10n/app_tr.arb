@@ -1,0 +1,52 @@
+{
+  "@@locale": "tr",
+  "navExplore": "Keşfet",
+  "navCategories": "Kategoriler",
+  "navFavorites": "Favoriler",
+  "navSettings": "Ayarlar",
+
+  "settingsTitle": "Ayarlar",
+  "premiumSection": "Premium",
+  "themeSection": "Görsel Tema",
+  "aboutSection": "Hakkında",
+  "themeLight": "Açık Tema",
+  "themeDark": "Koyu Tema",
+  "themeAmoled": "AMOLED (Saf Siyah)",
+  "themeActivated": "{name} aktif edildi",
+  "@themeActivated": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "appVersion": "Uygulama Sürümü",
+
+  "proUserTitle": "Pro Kullanıcısı",
+  "proUserSubtitle": "Tüm özellikler aktif",
+  "freePlanTitle": "Ücretsiz Plan",
+  "dailyAiQuota": "Günlük {remaining}/{limit} AI üretim hakkı",
+  "@dailyAiQuota": {
+    "placeholders": { "remaining": { "type": "int" }, "limit": { "type": "int" } }
+  },
+  "upgradeToPro": "Pro'ya Yüksel",
+
+  "proTitle": "4K-HD Pro",
+  "paywallSubtitle": "Yapay zeka ile duvar kağıdı üretmenin kilidini aç",
+  "featureNvidiaTitle": "NVIDIA AI ile Üretim",
+  "featureNvidiaDesc": "Hayalindeki duvar kağıdını NVIDIA yapay zekasıyla saniyeler içinde oluştur",
+  "featureStylesTitle": "Tüm Sanat Stilleri",
+  "featureStylesDesc": "10+ stil açılır: gerçekçi, anime, siberpunk, fantastik ve daha fazlası",
+  "featureAdFreeTitle": "Reklamsız Deneyim",
+  "featureAdFreeDesc": "Banner ve tüm reklamlar kalkar, kesintisiz kullanırsın",
+  "featureApplyTitle": "Tek Dokunuşla Uygula",
+  "featureApplyDesc": "Ürettiğin görseli ana/kilit ekranına uygula, indir veya paylaş",
+  "aiLockedNotice": "AI duvar kağıdı üretimi şu an kilitli. Pro ile hemen aç.",
+  "monthlyPro": "Aylık Pro",
+  "monthlyProSubtitle": "Ayda bir kez ödeme",
+  "yearlyPro": "Yıllık Pro",
+  "yearlyProSubtitle": "En iyi değer - %40 tasarruf",
+  "restorePurchase": "Satın Alımı Geri Yükle",
+  "subscriptionAutoRenew": "Abonelik otomatik yenilenir. İstediğiniz zaman iptal edebilirsiniz.",
+  "productsLoadError": "Ürünler yüklenemedi. Lütfen internet bağlantınızı kontrol edin.",
+  "retry": "Tekrar Dene",
+  "purchaseInProgress": "Satın alma işlemi sürüyor...",
+  "upgradedToProMessage": "Pro'ya yükseltildiniz! Teşekkürler.",
+  "restoringPurchases": "Satın alımlar geri yükleniyor..."
+}
