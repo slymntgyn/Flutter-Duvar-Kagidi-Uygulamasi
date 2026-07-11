@@ -5,7 +5,8 @@ class AppConstants {
   static const String appName = '4K-HD Duvar Kağıtları';
 
   // AI Generation
-  static const int defaultAiDailyLimit = 3;
+  static const int defaultAiDailyLimit = 3; // Pro varsayilan gunluk limit
+  static const int freeAiDailyLimit = 1; // Ucretsiz kullanici gunluk deneme hakki
   static const int maxGenerationHistory = 10;
 
   // Retry

@@ -49,9 +49,21 @@ test/
 
 ## Backend / API
 - Tek host: `https://api.suleymanturan.com` (`ApiConstants.baseUrl`) — tüm endpoint'ler `lib/core/constants/api_constants.dart` içinde tanımlı, yeni endpoint oraya eklenir.
-- **AI API anahtarları koda yazılmaz** — backend'den `/api/ayar` ile gelir (`settings.aiApiKey`), `core/di/providers.dart` servise enjekte eder.
-- AI sağlayıcı seçimi `AI_PROVIDER` ayarı ile (openrouter / openai); failover: `failover_ai_service.dart`.
 - Kullanıcı kimliği cihaz ID (`device_info_plus`), backend'de `/api/kullanici/{deviceId}`.
+
+## AI Görsel Üretimi — NVIDIA (tek sağlayıcı)
+- Sağlayıcı **yalnızca NVIDIA NIM**'dir (`lib/features/ai_generation/data/services/nvidia_ai_service.dart`). Eski OpenAI/OpenRouter/Pollinations/Failover servisleri kaldırıldı — geri ekleme.
+- Varsayılan model **FLUX.1-schnell** (`ApiConstants.defaultNvidiaModel = 'black-forest-labs/flux.1-schnell'`). Endpoint: `https://ai.api.nvidia.com/v1/genai/{model}`.
+- **API anahtarı koda yazılmaz** — backend `/api/ayar` içinde şu anahtarlardan biriyle döner: `NVIDIA_API_KEY` / `NVIDIA API KEY` / `AI_API_KEY` (geriye dönük). Anahtar `nvapi-` ile başlar. `settings_model.dart` parse eder, `core/di/providers.dart` servise enjekte eder.
+- **Backend NVIDIA anahtarı sağlamazsa AI üretim çalışmaz** (`_EmptyAIService` "anahtar tanımlı değil" hatası verir). Play'e çıkmadan önce backend'e geçerli `nvapi-` anahtarı konmalı.
+- Model backend'den `AI_DUVAR_KAGIDI_URETME_MODEL` ile değiştirilebilir (flux.1-dev, stabilityai/stable-diffusion-xl vb.). Servis yanıtı `artifacts[].base64`, `image`, `data[].b64_json/url` formatlarının hepsini parse eder.
+- `NvidiaImageService` istenen boyutu 64'ün katına ve 512-1024 aralığına sıkıştırıp dikey oranı korur (NVIDIA boyut kısıtları).
+
+## Premium / Limit modeli
+- **Ücretsiz: günde 1** AI üretim denemesi (`AppConstants.freeAiDailyLimit`). **Pro: günde 3** (`defaultAiDailyLimit`, backend `dailyLimit` ile override).
+- İki sayaç var: `premiumProvider` (PremiumStatus) ve `dailyLimitProvider` — ikisi de free=1/pro=3 kuralına göre hizalı tutulmalı; birini değiştirirsen diğerini de kontrol et.
+- Free hakkı bitince üret butonu paywall'a yönlendirir; Pro bitince "yarın tekrar deneyin" uyarısı.
+- Paywall vaatleri koda bağlı ve **dürüst olmalı** (Play politikası): "sınırsız"/"4K" gibi karşılığı olmayan vaatler yazma. Mevcut vaatler: NVIDIA AI üretim, tüm stiller, reklamsız, tek dokunuşla uygula.
 
 ## Kod Kuralları
 - `var` yerine açık tip; `final` tercih et

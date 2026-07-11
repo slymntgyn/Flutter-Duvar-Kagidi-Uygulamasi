@@ -52,8 +52,9 @@ class DailyLimitNotifier extends StateNotifier<DailyLimitState> {
   }
 
   int _resolveLimit(int settingsLimit, bool isPro) {
+    // Ucretsiz kullanici gunde 1 deneme hakki alir.
     if (!isPro) {
-      return 0;
+      return AppConstants.freeAiDailyLimit;
     }
 
     if (settingsLimit > 0) {
@@ -65,14 +66,13 @@ class DailyLimitNotifier extends StateNotifier<DailyLimitState> {
 
   void _applyLimitByMembership(int settingsLimit, bool isPro) {
     final int resolvedLimit = _resolveLimit(settingsLimit, isPro);
-    final int resolvedUsed = resolvedLimit == 0 ? 0 : state.used;
 
-    if (resolvedLimit == state.limit && resolvedUsed == state.used) {
+    if (resolvedLimit == state.limit) {
       return;
     }
 
     state = DailyLimitState(
-      used: resolvedUsed,
+      used: state.used,
       limit: resolvedLimit,
       lastDate: state.lastDate,
     );
@@ -110,7 +110,7 @@ class DailyLimitNotifier extends StateNotifier<DailyLimitState> {
     }
 
     state = DailyLimitState(
-      used: isPro ? count : 0,
+      used: count,
       limit: _resolveLimit(settings?.aiDailyLimit ?? 0, isPro),
       lastDate: today,
     );

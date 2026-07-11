@@ -39,8 +39,8 @@ class PremiumStatus {
     );
   }
 
-  /// Free kullanici icin fabrika.
-  factory PremiumStatus.free({int dailyLimit = 3}) {
+  /// Free kullanici icin fabrika. Ucretsiz plan gunde 1 deneme hakki verir.
+  factory PremiumStatus.free({int dailyLimit = 1}) {
     return PremiumStatus(
       tier: PremiumTier.free,
       dailyAiLimit: dailyLimit,

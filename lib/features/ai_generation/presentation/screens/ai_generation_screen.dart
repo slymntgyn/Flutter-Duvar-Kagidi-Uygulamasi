@@ -205,21 +205,21 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     });
 
     try {
-      // AI uretimi sadece premium kullanicilar icin acik.
+      // Ucretsiz kullanici gunde 1, Pro daha fazla uretebilir.
+      // Gunluk hak bittiginde: ucretsiz ise Pro'ya yonlendir, Pro ise uyar.
       final premiumStatus = ref.read(premiumProvider);
-      if (!premiumStatus.isPro) {
-        HapticFeedback.mediumImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const PremiumPaywallScreen()),
-        );
-        return;
-      }
-
       final limitState = ref.read(dailyLimitProvider);
       if (limitState.isExhausted) {
         HapticFeedback.lightImpact();
-        _showError('Gunluk AI uretim limitiniz doldu.');
+        if (!premiumStatus.isPro) {
+          HapticFeedback.mediumImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PremiumPaywallScreen()),
+          );
+        } else {
+          _showError('Gunluk AI uretim limitiniz doldu.');
+        }
         return;
       }
 
@@ -746,12 +746,12 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     DailyLimitState limitState,
     PremiumStatus premiumStatus,
   ) {
-    final remaining = premiumStatus.isPro ? limitState.remaining : 0;
-    final limit = premiumStatus.isPro ? limitState.limit : 0;
+    final remaining = limitState.remaining;
+    final limit = limitState.limit;
     final isExhausted = limitState.isExhausted;
-    final statusColor = premiumStatus.isPro
-        ? (isExhausted ? Colors.red : Colors.green)
-        : Colors.orange;
+    final statusColor = isExhausted
+        ? Colors.red
+        : (premiumStatus.isPro ? Colors.green : Colors.orange);
     final progress =
         limit > 0 ? (limitState.used / limit).clamp(0.0, 1.0) : 0.0;
 
@@ -796,7 +796,9 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
                           ? (isExhausted
                               ? 'Gunluk limitiniz doldu. Yarin tekrar deneyin.'
                               : 'Bugun $remaining uretim hakkiniz kaldi.')
-                          : 'Premium uyelikle gunluk 3 uretim hakki kazanirsiniz.',
+                          : (isExhausted
+                              ? 'Bugunku ucretsiz hakkinizi kullandiniz. Pro ile gunde 3 uretim.'
+                              : 'Ucretsiz gunde $limit deneme hakkiniz var. Pro ile gunde 3.'),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.textTheme.bodySmall?.color
                             ?.withValues(alpha: 0.7),
@@ -1115,7 +1117,6 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
   ) {
     final isGenerating = genState.isGenerating;
     final canGenerate = _promptIsNotEmpty &&
-        premiumStatus.isPro &&
         !limitState.isExhausted &&
         !isGenerating &&
         !_isGenerateLocked;

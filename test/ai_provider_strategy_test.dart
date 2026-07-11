@@ -5,7 +5,7 @@ import 'package:senseriduvarkagidi/core/di/providers.dart';
 import 'package:senseriduvarkagidi/features/settings/domain/entities/app_settings.dart';
 
 void main() {
-  test('AI_PROVIDER=openrouter ise OpenRouter servisi secilir', () async {
+  test('API anahtari varsa NVIDIA servisi secilir', () async {
     final container = ProviderContainer(
       overrides: [
         appSettingsProvider.overrideWith(
@@ -17,10 +17,9 @@ void main() {
             bannerAdId: '',
             isBannerAdEnabled: false,
             telegramLink: '',
-            aiApiKey: 'test-key',
+            aiApiKey: 'nvapi-test-key',
             aiDailyLimit: 3,
-            aiModel: 'openai/gpt-image-1',
-            aiProvider: 'openrouter',
+            aiModel: 'black-forest-labs/flux.1-schnell',
           ),
         ),
       ],
@@ -30,10 +29,10 @@ void main() {
     await container.read(appSettingsProvider.future);
 
     final service = container.read(aiImageServiceProvider);
-    expect(service.serviceId, 'openrouter');
+    expect(service.serviceId, 'nvidia');
   });
 
-  test('AI_PROVIDER=openai ise OpenAI servisi secilir', () async {
+  test('API anahtari yoksa bos servis secilir', () async {
     final container = ProviderContainer(
       overrides: [
         appSettingsProvider.overrideWith(
@@ -45,10 +44,8 @@ void main() {
             bannerAdId: '',
             isBannerAdEnabled: false,
             telegramLink: '',
-            aiApiKey: 'test-key',
+            aiApiKey: '',
             aiDailyLimit: 3,
-            aiModel: 'gpt-image-1',
-            aiProvider: 'openai',
           ),
         ),
       ],
@@ -58,6 +55,6 @@ void main() {
     await container.read(appSettingsProvider.future);
 
     final service = container.read(aiImageServiceProvider);
-    expect(service.serviceId, 'openai');
+    expect(service.serviceId, 'none');
   });
 }

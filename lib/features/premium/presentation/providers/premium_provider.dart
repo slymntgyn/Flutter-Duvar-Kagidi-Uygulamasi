@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:senseriduvarkagidi/core/constants/api_constants.dart';
+import 'package:senseriduvarkagidi/core/constants/app_constants.dart';
 import 'package:senseriduvarkagidi/core/di/providers.dart';
 import 'package:senseriduvarkagidi/features/premium/domain/entities/premium_status.dart';
 
@@ -40,7 +41,9 @@ class PremiumNotifier extends StateNotifier<PremiumStatus> {
 
     state = PremiumStatus(
       tier: tier,
-      dailyAiLimit: 3,
+      dailyAiLimit: tier == PremiumTier.pro
+          ? AppConstants.defaultAiDailyLimit
+          : AppConstants.freeAiDailyLimit,
       dailyAiUsed: usedToday,
       canUseProStyles: tier == PremiumTier.pro,
       adFree: tier == PremiumTier.pro,
@@ -63,7 +66,11 @@ class PremiumNotifier extends StateNotifier<PremiumStatus> {
         final data = response.data as Map<String, dynamic>;
         final isPremium = data['isPremium'] as bool? ?? false;
         final dailyCount = data['aiDailyCount'] as int? ?? 0;
-        final dailyLimit = data['dailyLimit'] as int? ?? 3;
+        final serverLimit =
+            data['dailyLimit'] as int? ?? AppConstants.defaultAiDailyLimit;
+        // Ucretsiz plan her zaman gunde 1; Pro icin sunucu limiti gecerli.
+        final dailyLimit =
+            isPremium ? serverLimit : AppConstants.freeAiDailyLimit;
 
         final tier = isPremium ? PremiumTier.pro : PremiumTier.free;
 

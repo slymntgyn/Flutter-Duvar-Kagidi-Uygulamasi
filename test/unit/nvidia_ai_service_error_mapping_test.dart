@@ -2,14 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:senseriduvarkagidi/core/errors/exceptions.dart';
 import 'package:senseriduvarkagidi/core/network/dio_client.dart';
-import 'package:senseriduvarkagidi/features/ai_generation/data/services/openrouter_ai_service.dart';
+import 'package:senseriduvarkagidi/features/ai_generation/data/services/nvidia_ai_service.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/domain/entities/generation_request.dart';
 
 class MockDioClient extends Mock implements DioClient {}
 
 void main() {
   late MockDioClient mockDioClient;
-  late OpenRouterImageService service;
+  late NvidiaImageService service;
   const request = GenerationRequest(
     prompt: 'A calm mountain sunrise',
     style: 'dogal',
@@ -19,10 +19,10 @@ void main() {
 
   setUp(() {
     mockDioClient = MockDioClient();
-    service = OpenRouterImageService(
+    service = NvidiaImageService(
       dioClient: mockDioClient,
       apiKey: 'test-key',
-      model: 'openai/gpt-image-1',
+      model: 'black-forest-labs/flux.1-schnell',
     );
   });
 
@@ -84,6 +84,27 @@ void main() {
           (exception) => exception.message,
           'message',
           contains('429'),
+        ),
+      ),
+    );
+  });
+
+  test('500 oldugunda sunucu hatasi doner', () async {
+    when(
+      () => mockDioClient.externalPost<dynamic>(
+        any(),
+        data: any(named: 'data'),
+        headers: any(named: 'headers'),
+      ),
+    ).thenThrow(const ServerException('Server Error', statusCode: 500));
+
+    await expectLater(
+      () => service.generateImage(request),
+      throwsA(
+        isA<AIServiceException>().having(
+          (exception) => exception.message.toLowerCase(),
+          'message',
+          contains('sunucu hatası'),
         ),
       ),
     );

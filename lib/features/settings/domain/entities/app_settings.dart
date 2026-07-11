@@ -1,3 +1,5 @@
+import 'package:senseriduvarkagidi/core/constants/api_constants.dart';
+
 /// Sunucudan alinan uygulama ayarlari.
 /// Pure Dart - Flutter bagimliligi yoktur.
 class AppSettings {
@@ -9,18 +11,10 @@ class AppSettings {
   final bool isBannerAdEnabled;
   final String telegramLink;
 
-  // OpenRouter AI ayarlari
+  // NVIDIA AI gorsel uretim ayarlari
   final String aiApiKey;
   final int aiDailyLimit;
   final String aiModel;
-
-  // OpenAI ayarlari
-  final String openAiApiKey;
-  final String openAiModel;
-
-  /// Sunucudan gelen AI provider tercih ayari ('openrouter' veya 'openai').
-  /// Kullanici uygulama icinden de degistirebilir.
-  final String aiProvider;
 
   const AppSettings({
     required this.imageServerUrl,
@@ -32,13 +26,10 @@ class AppSettings {
     required this.telegramLink,
     required this.aiApiKey,
     required this.aiDailyLimit,
-    required this.aiModel,
-    this.openAiApiKey = '',
-    this.openAiModel = 'dall-e-3',
-    this.aiProvider = 'openai',
+    this.aiModel = ApiConstants.defaultNvidiaModel,
   });
 
-  /// Bos / default LegacyAyarlar.
+  /// Bos / default ayarlar.
   static const AppSettings empty = AppSettings(
     imageServerUrl: '',
     isMaintenanceMode: false,
@@ -49,10 +40,7 @@ class AppSettings {
     telegramLink: '',
     aiApiKey: '',
     aiDailyLimit: 3,
-    aiModel: '',
-    openAiApiKey: '',
-    openAiModel: 'dall-e-3',
-    aiProvider: 'openai',
+    aiModel: ApiConstants.defaultNvidiaModel,
   );
 
   AppSettings copyWith({
@@ -66,9 +54,6 @@ class AppSettings {
     String? aiApiKey,
     int? aiDailyLimit,
     String? aiModel,
-    String? openAiApiKey,
-    String? openAiModel,
-    String? aiProvider,
   }) {
     return AppSettings(
       imageServerUrl: imageServerUrl ?? this.imageServerUrl,
@@ -81,10 +66,6 @@ class AppSettings {
       aiApiKey: aiApiKey ?? this.aiApiKey,
       aiDailyLimit: aiDailyLimit ?? this.aiDailyLimit,
       aiModel: aiModel ?? this.aiModel,
-      openAiApiKey: openAiApiKey ?? this.openAiApiKey,
-      openAiModel: openAiModel ?? this.openAiModel,
-      aiProvider: aiProvider ?? this.aiProvider,
     );
   }
 }
-

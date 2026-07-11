@@ -45,19 +45,17 @@ class ApiConstants {
   static String logAiGeneration(String deviceId) =>
       '/api/premium/$deviceId/ai-log';
 
-  // ==================== Harici AI API'leri ====================
+  // ==================== NVIDIA AI (gorsel uretim) ====================
 
-  /// OpenRouter API
-  static const String openRouterBaseUrl = 'https://openrouter.ai/api/v1';
-  static const String openRouterChatCompletions =
-      '$openRouterBaseUrl/chat/completions';
-  static const String openRouterImageGeneration =
-      '$openRouterBaseUrl/images/generations';
+  /// NVIDIA NIM (build.nvidia.com) hosted gorsel uretim API kok adresi.
+  static const String nvidiaBaseUrl = 'https://ai.api.nvidia.com/v1/genai';
 
-  /// OpenAI API
-  static const String openAiBaseUrl = 'https://api.openai.com/v1';
-  static const String openAiImageGeneration =
-      '$openAiBaseUrl/images/generations';
+  /// Varsayilan NVIDIA gorsel modeli (hizli, 4 adimda uretir).
+  static const String defaultNvidiaModel = 'black-forest-labs/flux.1-schnell';
+
+  /// Verilen model icin tam uretim endpoint'ini olusturur.
+  /// Ornek: '$nvidiaBaseUrl/black-forest-labs/flux.1-schnell'
+  static String nvidiaImageGeneration(String model) => '$nvidiaBaseUrl/$model';
 
   // ==================== Timeout'lar ====================
 

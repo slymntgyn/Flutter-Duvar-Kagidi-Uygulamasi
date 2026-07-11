@@ -23,8 +23,7 @@ import 'package:senseriduvarkagidi/features/user/data/repositories/user_reposito
 import 'package:senseriduvarkagidi/features/user/domain/repositories/user_repository.dart';
 
 import 'package:senseriduvarkagidi/core/errors/exceptions.dart';
-import 'package:senseriduvarkagidi/features/ai_generation/data/services/openai_ai_service.dart';
-import 'package:senseriduvarkagidi/features/ai_generation/data/services/openrouter_ai_service.dart';
+import 'package:senseriduvarkagidi/features/ai_generation/data/services/nvidia_ai_service.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/domain/entities/generation_request.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/domain/services/ai_image_service.dart';
 import 'package:senseriduvarkagidi/features/settings/domain/entities/app_settings.dart';
@@ -106,8 +105,7 @@ final userRepositoryProvider = Provider<UserRepository>((ref) {
 
 // ==================== AI Service ====================
 
-/// AI gorsel uretim servisi.
-/// AI_PROVIDER ayarina gore OpenAI veya OpenRouter secilir.
+/// NVIDIA gorsel uretim servisi. API anahtari yoksa bos servis doner.
 final aiImageServiceProvider = Provider<AIImageService>((ref) {
   final settings = ref.watch(appSettingsProvider).valueOrNull;
 
@@ -115,22 +113,10 @@ final aiImageServiceProvider = Provider<AIImageService>((ref) {
     return _EmptyAIService();
   }
 
-  final provider = settings.aiProvider.trim().toLowerCase();
-  final model =
-      settings.aiModel.trim().isNotEmpty ? settings.aiModel.trim() : 'dall-e-3';
-
-  if (provider == 'openrouter') {
-    return OpenRouterImageService(
-      dioClient: ref.read(dioClientProvider),
-      apiKey: settings.aiApiKey,
-      model: model,
-    );
-  }
-
-  return OpenAIImageService(
+  return NvidiaImageService(
     dioClient: ref.read(dioClientProvider),
     apiKey: settings.aiApiKey,
-    model: model,
+    model: settings.aiModel,
   );
 });
 

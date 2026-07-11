@@ -1,3 +1,4 @@
+import 'package:senseriduvarkagidi/core/constants/api_constants.dart';
 import 'package:senseriduvarkagidi/features/settings/domain/entities/app_settings.dart';
 
 /// Sunucudan gelen ham ayar ciftlerini AppSettings'e donusturur.
@@ -34,17 +35,21 @@ class SettingsModel {
 
     int getAiLimit() => getInt('AI DUVAR KAĞIDI URETME LIMIT');
 
-    final aiProvider = getFirstNonEmptyValue(
-      const ['AI_PROVIDER', 'AI PROVIDER'],
-    ).toLowerCase();
+    // NVIDIA API anahtari. Eski AI_API_KEY / OPENAI API KEY alanlari da okunur
+    // (backend gecis surecinde bu alana nvapi- anahtari konulabilir).
     final aiApiKey = getFirstNonEmptyValue(
-      const ['AI_API_KEY', 'AI API KEY', 'OPENAI API KEY'],
+      const [
+        'NVIDIA_API_KEY',
+        'NVIDIA API KEY',
+        'AI_API_KEY',
+        'AI API KEY',
+        'OPENAI API KEY',
+      ],
     );
     final aiModel = getFirstNonEmptyValue(
       const [
         'AI_DUVAR_KAGIDI_URETME_MODEL',
         'AI DUVAR KAGIDI URETME MODEL',
-        'OPENAI MODEL',
       ],
     );
 
@@ -58,10 +63,7 @@ class SettingsModel {
       telegramLink: getValue('TELEGRAM BUTON LINKI'),
       aiApiKey: aiApiKey,
       aiDailyLimit: getAiLimit(),
-      aiModel: aiModel,
-      openAiApiKey: aiApiKey,
-      openAiModel: aiModel.isNotEmpty ? aiModel : 'dall-e-3',
-      aiProvider: aiProvider.isNotEmpty ? aiProvider : 'openai',
+      aiModel: aiModel.isNotEmpty ? aiModel : ApiConstants.defaultNvidiaModel,
     );
   }
 }

@@ -12,16 +12,18 @@ void main() {
     expect(status.remainingAiGenerations, 3);
   });
 
-  test('free kullanici limit 0 iken uretim yapamaz', () {
-    const status = PremiumStatus(
-      tier: PremiumTier.free,
-      dailyAiLimit: 0,
-      dailyAiUsed: 0,
-      canUseProStyles: false,
-      adFree: false,
-    );
+  test('free kullanici gunde 1 deneme hakki ile baslar', () {
+    final status = PremiumStatus.free();
 
     expect(status.isPro, isFalse);
+    expect(status.dailyAiLimit, 1);
+    expect(status.remainingAiGenerations, 1);
+    expect(status.canGenerate, isTrue);
+  });
+
+  test('free kullanici tek hakkini kullaninca uretemez', () {
+    final status = PremiumStatus.free().copyWith(dailyAiUsed: 1);
+
     expect(status.canGenerate, isFalse);
     expect(status.remainingAiGenerations, 0);
   });

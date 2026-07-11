@@ -1,26 +1,19 @@
 import 'package:senseriduvarkagidi/features/ai_generation/domain/entities/generation_request.dart';
 
-/// Kullanıcı prompt'unu AI modeli için optimize eder.
-/// Pollinations için ayrı, OpenRouter için ayrı prompt formatı kullanılır.
+/// Kullanıcı prompt'unu görsel üretim modeli için optimize eder.
+/// Konu + seçilen stil + kalite eklerini birleştirir.
 class PromptEnhancer {
   PromptEnhancer._();
 
-  /// OpenRouter (chat completions) için prompt üretir.
+  /// Metinden-görsele model (NVIDIA FLUX / SDXL) için prompt üretir.
   static String enhance(GenerationRequest request) {
     final buffer = StringBuffer();
 
-    buffer.write(
-      'Generate a high quality mobile wallpaper image. '
-      'Return ONLY base64 image data, no text explanation. '
-      'Dimensions: width=${request.width.toInt()}, height=${request.height.toInt()}. '
-      'Subject: ${request.prompt} ',
-    );
-
+    buffer.write(request.prompt.trim());
     buffer.write(_getStyleModifier(request.style));
-
     buffer.write(
       ', masterpiece, best quality, ultra detailed, sharp focus, '
-      'wallpaper format. Return base64 only, no conversation.',
+      'vertical mobile wallpaper, 4k',
     );
 
     return buffer.toString();
