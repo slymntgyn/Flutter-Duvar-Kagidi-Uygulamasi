@@ -50,8 +50,10 @@ class ApiConstants {
   /// NVIDIA NIM (build.nvidia.com) hosted gorsel uretim API kok adresi.
   static const String nvidiaBaseUrl = 'https://ai.api.nvidia.com/v1/genai';
 
-  /// Varsayilan NVIDIA gorsel modeli (hizli, 4 adimda uretir).
-  static const String defaultNvidiaModel = 'black-forest-labs/flux.1-schnell';
+  /// Varsayilan NVIDIA gorsel modeli.
+  /// NOT: flux.1-schnell bazi hesaplarda yanit vermeyip asili kaliyor;
+  /// flux.1-dev stabil calisiyor (bkz. nvidia_ai_service steps mantigi).
+  static const String defaultNvidiaModel = 'black-forest-labs/flux.1-dev';
 
   /// Verilen model icin tam uretim endpoint'ini olusturur.
   /// Ornek: '$nvidiaBaseUrl/black-forest-labs/flux.1-schnell'

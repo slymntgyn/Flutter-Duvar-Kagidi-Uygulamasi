@@ -47,6 +47,10 @@ class NvidiaImageService implements AIImageService {
     final size = _resolveSize(request.width, request.height);
 
     try {
+      // flux.1-schnell 1-4 adim ister; flux.1-dev ve digerleri en az 5 (dev
+      // 4 gonderilirse 422 verir). Modele gore uygun adim sayisini sec.
+      final steps = _model.contains('schnell') ? 4 : 25;
+
       final response = await _dioClient.externalPost(
         ApiConstants.nvidiaImageGeneration(_model),
         data: {
@@ -56,7 +60,7 @@ class NvidiaImageService implements AIImageService {
           'width': size.$1,
           'height': size.$2,
           'seed': 0,
-          'steps': 4,
+          'steps': steps,
         },
         headers: {
           'Authorization': 'Bearer $_apiKey',
