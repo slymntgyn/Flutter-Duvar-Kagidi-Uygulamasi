@@ -53,7 +53,7 @@ test/
 
 ## AI Görsel Üretimi — NVIDIA (tek sağlayıcı)
 - Sağlayıcı **yalnızca NVIDIA NIM**'dir (`lib/features/ai_generation/data/services/nvidia_ai_service.dart`). Eski OpenAI/OpenRouter/Pollinations/Failover servisleri kaldırıldı — geri ekleme.
-- Varsayılan model **FLUX.1-schnell** (`ApiConstants.defaultNvidiaModel = 'black-forest-labs/flux.1-schnell'`). Endpoint: `https://ai.api.nvidia.com/v1/genai/{model}`.
+- Varsayılan model **FLUX.1-dev** (`ApiConstants.defaultNvidiaModel`). Endpoint: `https://ai.api.nvidia.com/v1/genai/{model}`. **DİKKAT: flux.1-schnell bu hesapta yanıt vermeyip isteği sonsuz askıda bırakıyor** (10 dk hang) — schnell'e geri dönme. Steps modele göre: schnell=4, dev/diğer=25 (dev 4 adımı 422 ile reddeder).
 - **API anahtarı koda yazılmaz** — backend `/api/ayar` içinde şu anahtarlardan biriyle döner: `NVIDIA_API_KEY` / `NVIDIA API KEY` / `AI_API_KEY` (geriye dönük). Anahtar `nvapi-` ile başlar. `settings_model.dart` parse eder, `core/di/providers.dart` servise enjekte eder.
 - **Backend NVIDIA anahtarı sağlamazsa AI üretim çalışmaz** (`_EmptyAIService` "anahtar tanımlı değil" hatası verir). Play'e çıkmadan önce backend'e geçerli `nvapi-` anahtarı konmalı.
 - Model backend'den `AI_DUVAR_KAGIDI_URETME_MODEL` ile değiştirilebilir (flux.1-dev, stabilityai/stable-diffusion-xl vb.). Servis yanıtı `artifacts[].base64`, `image`, `data[].b64_json/url` formatlarının hepsini parse eder.
