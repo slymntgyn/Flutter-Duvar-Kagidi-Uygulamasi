@@ -156,6 +156,15 @@ Alt nav sekmeleri (gerçek px): Keşfet ~110,2280 · Kategoriler ~342,2274 · Fa
 - targetSdk 36 / minSdk 24 — Play'in güncel targetSdk şartını sürüm yükseltmeden önce kontrol et
 - İzinsiz arka plan veri toplama yok; reklam içerik gibi gösterilmez; telifsiz görsel kullanılmaz
 - Premium/abonelik akışı değişirse Play Billing politikalarını gözden geçir
+- **Medya izinleri (KRİTİK):** Uygulama kullanıcı medyasını OKUMAZ, yalnızca görsel
+  KAYDEDER. Galeriye kaydetme `gal` paketi + `GallerySaver` ile yapılır (MediaStore,
+  READ_MEDIA_* istemez). **`photo_manager`'ı GERİ EKLEME** — READ_MEDIA_IMAGES/VIDEO
+  beyan ediyor ve Play "Foto/Video izin politikası" ile sürümü REDDEDER (2026-07'de oldu).
+  AndroidManifest'te READ_MEDIA_*, READ_EXTERNAL_STORAGE bulunmamalı; WRITE_EXTERNAL_STORAGE
+  yalnız `maxSdkVersion="28"` ile olabilir. `wallpaper_manager_plus` READ_EXTERNAL_STORAGE
+  ekliyor → manifest'te `tools:node="remove"` ile kaldırılmış durumda; koru.
+  Build sonrası `merged_manifest/release/.../AndroidManifest.xml` içinde READ_MEDIA/READ_EXTERNAL
+  olmadığını doğrula.
 
 ## Bilinen Tuzaklar
 - `lib/ek/`, `lib/model/`, `lib/Screens/` legacy klasörlerdir; buradaki kod `features/` ile paralel yaşıyor — davranış değiştirirken iki tarafı da kontrol et.
