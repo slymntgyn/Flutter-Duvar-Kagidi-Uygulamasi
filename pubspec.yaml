@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.0+41
+version: 1.1.1+42
 
 environment:
   sdk: '>=3.1.1 <4.0.0'
@@ -48,7 +48,7 @@ dependencies:
   device_info_plus: ^11.5.0 # Cihaz bilgileri için
   wallpaper_manager_plus: ^1.0.1 # Duvar kağıdı yapabilmek için
   flutter_cache_manager: ^3.4.1 # Hafıza erişimi için
-  photo_manager: any # Fotoğraf yöneticisi için
+  gal: ^2.3.0 # Görseli galeriye kaydetme (READ_MEDIA_* izni gerektirmez)
   dio: ^5.6.0 # HTTP istemcisi için
   stylish_bottom_bar: ^1.1.0 # Şık alt çubuk için
   like_button: ^2.0.5 # Beğen butonu için

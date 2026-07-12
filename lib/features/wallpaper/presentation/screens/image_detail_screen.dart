@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:photo_manager/photo_manager.dart';
+import 'package:senseriduvarkagidi/core/utils/gallery_saver.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:wallpaper_manager_plus/wallpaper_manager_plus.dart';
@@ -718,27 +718,20 @@ class _ImageDetailScreenState extends ConsumerState<ImageDetailScreen>
       final List<int> downloadedBytes = response.data ?? <int>[];
       final imageBytes = Uint8List.fromList(downloadedBytes);
 
-      final ps = await PhotoManager.requestPermissionExtend();
-      if (!ps.isAuth && ps != PermissionState.limited) {
-        _showErrorAlert('Galeriyi kaydetmek icin izin verilmedi.');
-        return;
-      }
-
-      final asset = await PhotoManager.editor.saveImage(
+      final saved = await GallerySaver.saveImage(
         imageBytes,
-        filename: 'wallpaper_${now.millisecondsSinceEpoch}',
-        title: 'wallpaper_${now.millisecondsSinceEpoch}',
+        name: 'wallpaper_${now.millisecondsSinceEpoch}',
       );
       if (!mounted) return;
 
-      if (asset.id.isNotEmpty) {
+      if (saved) {
         try {
           await Kullanici.logAction(
               context, Genel.deviceId, 'Download', widget.image.id);
         } catch (_) {}
         _showSuccessAlert('Resim basariyla indirildi!');
       } else {
-        _showErrorAlert('Resim indirilemedi');
+        _showErrorAlert('Galeriye kaydetmek icin izin verilmedi veya bir hata olustu.');
       }
     } catch (e) {
       _showErrorAlert('Bir hata olustu: ${e.toString()}');

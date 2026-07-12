@@ -3,10 +3,10 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:wallpaper_manager_plus/wallpaper_manager_plus.dart';
 
 import 'package:senseriduvarkagidi/core/constants/api_constants.dart';
+import 'package:senseriduvarkagidi/core/utils/gallery_saver.dart';
 import 'package:senseriduvarkagidi/core/errors/failures.dart';
 import 'package:senseriduvarkagidi/core/errors/result.dart';
 import 'package:senseriduvarkagidi/core/network/dio_client.dart';
@@ -67,23 +67,17 @@ class WallpaperRepositoryImpl implements WallpaperRepository {
 
       final Uint8List imageBytes = Uint8List.fromList(response.data as List<int>);
 
-      final PermissionState ps = await PhotoManager.requestPermissionExtend();
-      if (!ps.isAuth && ps != PermissionState.limited) {
-        return const Error(
-            PermissionFailure('Galeriyi kaydetmek için izin verilmedi'));
-      }
-
       final now = DateTime.now();
-      final asset = await PhotoManager.editor.saveImage(
+      final saved = await GallerySaver.saveImage(
         imageBytes,
-        filename: 'wallpaper_${now.millisecondsSinceEpoch}',
-        title: 'wallpaper_${now.millisecondsSinceEpoch}',
+        name: 'wallpaper_${now.millisecondsSinceEpoch}',
       );
 
-      if (asset.id.isNotEmpty) {
+      if (saved) {
         return const Success(null);
       }
-      return const Error(ServerFailure('Resim kaydedilemedi'));
+      return const Error(
+          PermissionFailure('Galeriye kaydedilemedi veya izin verilmedi'));
     } catch (e) {
       return Error(ServerFailure('İndirme hatası: $e'));
     }

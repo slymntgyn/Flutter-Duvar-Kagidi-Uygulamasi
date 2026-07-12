@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:photo_manager/photo_manager.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:wallpaper_manager_plus/wallpaper_manager_plus.dart';
 
 // New architecture providers
+import 'package:senseriduvarkagidi/core/utils/gallery_saver.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/presentation/providers/ai_generation_provider.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/presentation/providers/daily_limit_provider.dart';
 import 'package:senseriduvarkagidi/features/ai_generation/presentation/providers/generation_history_provider.dart';
@@ -452,25 +452,18 @@ class _AIGenerationScreenState extends ConsumerState<AIGenerationScreen>
     HapticFeedback.lightImpact();
 
     try {
-      final ps = await PhotoManager.requestPermissionExtend();
-      if (!ps.isAuth && ps != PermissionState.limited) {
-        _showError('Galeriye kaydetmek icin izin verilmedi.');
-        return;
-      }
-
       final now = DateTime.now();
-      final asset = await PhotoManager.editor.saveImage(
+      final saved = await GallerySaver.saveImage(
         imageBytes,
-        filename: 'ai_wallpaper_${now.millisecondsSinceEpoch}',
-        title: 'ai_wallpaper_${now.millisecondsSinceEpoch}',
+        name: 'ai_wallpaper_${now.millisecondsSinceEpoch}',
       );
       if (!mounted) return;
 
-      if (asset.id.isNotEmpty) {
+      if (saved) {
         await Kullanici.logAction(context, Genel.deviceId, 'AI Download', 0);
         _showSuccess('AI duvar kagidi galeriye kaydedildi!');
       } else {
-        _showError('Resim indirilemedi.');
+        _showError('Galeriye kaydetmek icin izin verilmedi veya bir hata olustu.');
       }
     } catch (e) {
       _showError('Indirme sirasinda bir hata olustu: $e');
